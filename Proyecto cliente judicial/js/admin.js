@@ -1,7 +1,7 @@
 // Aplicación principal del sistema judicial
 class JudicialSystem {
     constructor() {
-        this.currentUser = null;
+        this.currentUser = JSON.parse(sessionStorage.getItem('currentUser')) || { name: 'Administrador', role: 'admin' };
         this.currentSection = 'dashboard';
         this.charts = {}; // Almacenar instancias de gráficos
         this.init();
@@ -9,7 +9,8 @@ class JudicialSystem {
 
     init() {
         this.setupEventListeners();
-        this.showLoginSection();
+        this.updateUserInfo();
+        this.loadDashboard();
         this.loadSettings();
     }
 
@@ -158,8 +159,9 @@ class JudicialSystem {
     handleLogout() {
         this.currentUser = null;
         this.destroyAllCharts(); // Destruir todos los gráficos al cerrar sesión
-        this.showLoginSection();
-        this.hideAppSection();
+        sessionStorage.removeItem('currentUser');
+        sessionStorage.removeItem('userRole');
+        window.location.href = 'index.html';
         this.showNotification('Sesión cerrada correctamente', 'info');
     }
 
