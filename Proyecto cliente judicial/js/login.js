@@ -36,16 +36,26 @@ class LoginSystem {
     }
 
     loginSuccess(role, userData) {
-        // Guardar datos del usuario en sessionStorage
+        // Guardar en sessionStorage para permitir navegación
         sessionStorage.setItem('currentUser', JSON.stringify(userData));
         sessionStorage.setItem('userRole', role);
+        sessionStorage.setItem('loginTime', Date.now().toString());
 
-        // Redirigir según el rol
-        if (role === 'admin') {
-            window.location.href = 'admin.html';
-        } else {
-            window.location.href = 'user.html';
-        }
+        // También establecer variables globales
+        window.currentUser = userData;
+        window.userRole = role;
+
+        // Mostrar mensaje de éxito
+        this.showNotification(`Bienvenido, ${userData.name}!`, 'success');
+
+        // Redirigir después de un breve delay para mostrar el mensaje
+        setTimeout(() => {
+            if (role === 'admin') {
+                window.location.href = 'admin.html';
+            } else {
+                window.location.href = 'user.html';
+            }
+        }, 1000);
     }
 
     showNotification(message, type = 'info') {

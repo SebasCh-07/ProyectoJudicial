@@ -1,7 +1,16 @@
 // Aplicación principal del sistema judicial para usuarios
 class UserSystem {
     constructor() {
-        this.currentUser = JSON.parse(sessionStorage.getItem('currentUser')) || { name: 'Usuario', role: 'user' };
+        // Verificar si hay sesión válida
+        const currentUser = sessionStorage.getItem('currentUser');
+        const userRole = sessionStorage.getItem('userRole');
+        
+        if (!currentUser || userRole !== 'user') {
+            window.location.href = 'index.html';
+            return;
+        }
+        
+        this.currentUser = JSON.parse(currentUser);
         this.currentSection = 'dashboard';
         this.charts = {}; // Almacenar instancias de gráficos
         this.init();
@@ -62,10 +71,21 @@ class UserSystem {
     handleLogout() {
         this.currentUser = null;
         this.destroyAllCharts();
+        
+        // Limpiar sessionStorage
         sessionStorage.removeItem('currentUser');
         sessionStorage.removeItem('userRole');
-        window.location.href = 'index.html';
+        sessionStorage.removeItem('loginTime');
+        
+        // Limpiar variables globales
+        window.currentUser = null;
+        window.userRole = null;
+        
+        // Mostrar notificación y redirigir
         this.showNotification('Sesión cerrada correctamente', 'info');
+        setTimeout(() => {
+            window.location.href = 'index.html';
+        }, 1000);
     }
 
     updateUserInfo() {
@@ -102,6 +122,7 @@ class UserSystem {
             'clients': 'Gestión de Clientes',
             'judicial': 'Procesos Judiciales',
             'extrajudicial': 'Procesos Extrajudiciales',
+            'assignments': 'Mis Asignaciones',
             'alerts': 'Panel de Alertas',
             'reports': 'Reportes y Métricas'
         };
@@ -121,6 +142,9 @@ class UserSystem {
                 break;
             case 'extrajudicial':
                 this.loadExtrajudicialProcesses();
+                break;
+            case 'assignments':
+                this.loadAssignments();
                 break;
             case 'alerts':
                 this.loadAlerts();
@@ -299,6 +323,85 @@ class UserSystem {
                 </td>
             `;
             tbody.appendChild(row);
+        });
+    }
+
+    loadAssignments() {
+        const assignmentsGrid = document.getElementById('assignmentsGrid');
+        assignmentsGrid.innerHTML = '';
+
+        // Filtrar asignaciones para el usuario actual
+        const userAssignments = mockData.assignments.filter(assignment => 
+            assignment.assignedTo === this.currentUser.id
+        );
+
+        if (userAssignments.length === 0) {
+            assignmentsGrid.innerHTML = `
+                <div class="no-assignments">
+                    <i class="fas fa-tasks" style="font-size: 48px; color: #ccc; margin-bottom: 15px;"></i>
+                    <h3>No tienes asignaciones</h3>
+                    <p>Cuando el administrador te asigne procesos, aparecerán aquí.</p>
+                </div>
+            `;
+            return;
+        }
+
+        userAssignments.forEach(assignment => {
+            // Obtener información del proceso
+            let processInfo = { title: 'Proceso no encontrado', client: '', details: '' };
+            
+            if (assignment.processType === 'judicial') {
+                const process = mockData.judicialProcesses.find(p => p.id === assignment.processId);
+                if (process) {
+                    processInfo = {
+                        title: `Proceso Judicial: ${process.caseNumber}`,
+                        client: process.clientName,
+                        details: `Juzgado: ${process.court} | Monto: ${dataUtils.formatCurrency(process.amount)}`
+                    };
+                }
+            } else if (assignment.processType === 'extrajudicial') {
+                const process = mockData.extrajudicialProcesses.find(p => p.id === assignment.processId);
+                if (process) {
+                    processInfo = {
+                        title: `Proceso Extrajudicial: ${process.creditNumber}`,
+                        client: process.clientName,
+                        details: `Monto: ${dataUtils.formatCurrency(process.amount)} | Vencimiento: ${dataUtils.formatDate(process.dueDate)}`
+                    };
+                }
+            }
+
+            const assignmentCard = document.createElement('div');
+            assignmentCard.className = `assignment-card ${assignment.priority}`;
+            assignmentCard.innerHTML = `
+                <div class="assignment-header">
+                    <div>
+                        <div class="assignment-title">${processInfo.title}</div>
+                        <div class="assignment-meta">Asignado: ${dataUtils.formatDate(assignment.assignedDate)}</div>
+                    </div>
+                    <span class="badge badge-${assignment.priority}">${assignment.priority.toUpperCase()}</span>
+                </div>
+                
+                <div class="assignment-content">
+                    <p><strong>Cliente:</strong> ${processInfo.client}</p>
+                    <p><strong>Estado:</strong> <span class="badge badge-${assignment.status === 'completed' ? 'active' : assignment.status === 'in_progress' ? 'warning' : 'secondary'}">${this.getAssignmentStatusText(assignment.status)}</span></p>
+                    <p><strong>Fecha Límite:</strong> ${dataUtils.formatDate(assignment.dueDate)}</p>
+                    <p><small>${processInfo.details}</small></p>
+                    ${assignment.notes ? `<p><strong>Notas:</strong> ${assignment.notes}</p>` : ''}
+                </div>
+                
+                <div class="assignment-actions">
+                    <button class="btn-edit" onclick="app.viewAssignmentDetails(${assignment.id})">
+                        <i class="fas fa-eye"></i> Ver Detalles
+                    </button>
+                    <button class="btn-primary" onclick="app.updateAssignmentStatus(${assignment.id})">
+                        <i class="fas fa-edit"></i> Actualizar Estado
+                    </button>
+                    <button class="btn-secondary" onclick="app.uploadFileToProcess(${assignment.processId}, '${assignment.processType}')">
+                        <i class="fas fa-upload"></i> Subir Archivo
+                    </button>
+                </div>
+            `;
+            assignmentsGrid.appendChild(assignmentCard);
         });
     }
 
@@ -785,6 +888,249 @@ class UserSystem {
                 </div>
             </div>
         `);
+    }
+
+    // ===== FUNCIONES PARA ASIGNACIONES =====
+
+    getAssignmentStatusText(status) {
+        const statusMap = {
+            'assigned': 'Asignado',
+            'in_progress': 'En Progreso',
+            'completed': 'Completado',
+            'cancelled': 'Cancelado'
+        };
+        return statusMap[status] || status;
+    }
+
+    viewAssignmentDetails(assignmentId) {
+        const assignment = mockData.assignments.find(a => a.id === assignmentId);
+        if (!assignment) {
+            this.showNotification('Asignación no encontrada', 'error');
+            return;
+        }
+
+        const assignedBy = mockData.users.find(u => u.id === assignment.assignedBy);
+        
+        let processInfo = 'Proceso no encontrado';
+        let processFiles = [];
+        
+        if (assignment.processType === 'judicial') {
+            const process = mockData.judicialProcesses.find(p => p.id === assignment.processId);
+            if (process) {
+                processInfo = `<strong>Caso:</strong> ${process.caseNumber}<br>
+                              <strong>Cliente:</strong> ${process.clientName}<br>
+                              <strong>Juzgado:</strong> ${process.court}<br>
+                              <strong>Monto:</strong> ${dataUtils.formatCurrency(process.amount)}`;
+            }
+        } else if (assignment.processType === 'extrajudicial') {
+            const process = mockData.extrajudicialProcesses.find(p => p.id === assignment.processId);
+            if (process) {
+                processInfo = `<strong>Crédito:</strong> ${process.creditNumber}<br>
+                              <strong>Cliente:</strong> ${process.clientName}<br>
+                              <strong>Monto:</strong> ${dataUtils.formatCurrency(process.amount)}<br>
+                              <strong>Vencimiento:</strong> ${dataUtils.formatDate(process.dueDate)}`;
+            }
+        }
+
+        // Obtener archivos subidos para este proceso
+        processFiles = mockData.userUploads.filter(upload => 
+            upload.processId === assignment.processId && 
+            upload.processType === assignment.processType
+        );
+
+        this.showModal('Detalle de Asignación', `
+            <div class="assignment-detail">
+                <div class="assignment-header">
+                    <h3>Asignación #${assignment.id}</h3>
+                    <span class="badge badge-${assignment.status === 'completed' ? 'active' : assignment.status === 'in_progress' ? 'warning' : 'secondary'}">
+                        ${this.getAssignmentStatusText(assignment.status)}
+                    </span>
+                </div>
+                
+                <div class="info-section">
+                    <h4>Información General</h4>
+                    <p><strong>Tipo de Proceso:</strong> ${assignment.processType === 'judicial' ? 'Judicial' : 'Extrajudicial'}</p>
+                    <p><strong>Asignado por:</strong> ${assignedBy ? assignedBy.name : 'Usuario no encontrado'}</p>
+                    <p><strong>Fecha de Asignación:</strong> ${dataUtils.formatDate(assignment.assignedDate)}</p>
+                    <p><strong>Fecha Límite:</strong> ${dataUtils.formatDate(assignment.dueDate)}</p>
+                    <p><strong>Prioridad:</strong> <span class="badge badge-${assignment.priority}">${assignment.priority.toUpperCase()}</span></p>
+                </div>
+                
+                <div class="info-section">
+                    <h4>Información del Proceso</h4>
+                    <p>${processInfo}</p>
+                </div>
+                
+                <div class="info-section">
+                    <h4>Notas</h4>
+                    <p>${assignment.notes || 'No hay notas adicionales'}</p>
+                </div>
+
+                <div class="info-section">
+                    <h4>Archivos Subidos</h4>
+                    ${processFiles.length > 0 ? 
+                        processFiles.map(file => `
+                            <div class="uploaded-file">
+                                <i class="fas ${file.fileType === 'receipt' ? 'fa-receipt' : file.fileType === 'note' ? 'fa-sticky-note' : 'fa-file'}"></i>
+                                <span><strong>${file.fileName}</strong></span>
+                                <small>(${file.fileSize}) - ${dataUtils.formatDate(file.uploadDate)}</small>
+                                <p><em>${file.description}</em></p>
+                            </div>
+                        `).join('') : 
+                        '<p>No hay archivos subidos para este proceso</p>'
+                    }
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" onclick="app.updateAssignmentStatus(${assignment.id})" class="btn-primary">
+                        <i class="fas fa-edit"></i> Actualizar Estado
+                    </button>
+                    <button type="button" onclick="app.uploadFileToProcess(${assignment.processId}, '${assignment.processType}')" class="btn-secondary">
+                        <i class="fas fa-upload"></i> Subir Archivo
+                    </button>
+                </div>
+            </div>
+        `);
+    }
+
+    updateAssignmentStatus(assignmentId) {
+        const assignment = mockData.assignments.find(a => a.id === assignmentId);
+        if (!assignment) {
+            this.showNotification('Asignación no encontrada', 'error');
+            return;
+        }
+
+        this.showModal('Actualizar Estado de Asignación', `
+            <form id="updateStatusForm">
+                <div class="form-group">
+                    <label for="assignmentStatus">Estado *</label>
+                    <select id="assignmentStatus" required>
+                        <option value="assigned" ${assignment.status === 'assigned' ? 'selected' : ''}>Asignado</option>
+                        <option value="in_progress" ${assignment.status === 'in_progress' ? 'selected' : ''}>En Progreso</option>
+                        <option value="completed" ${assignment.status === 'completed' ? 'selected' : ''}>Completado</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="statusNotes">Notas del Usuario</label>
+                    <textarea id="statusNotes" rows="3" placeholder="Agrega comentarios sobre el progreso..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" onclick="app.saveAssignmentStatus(${assignmentId})" class="btn-primary">
+                        <i class="fas fa-save"></i> Actualizar Estado
+                    </button>
+                    <button type="button" onclick="app.closeModal()" class="btn-secondary">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                </div>
+            </form>
+        `);
+    }
+
+    saveAssignmentStatus(assignmentId) {
+        const status = document.getElementById('assignmentStatus').value;
+        const notes = document.getElementById('statusNotes').value.trim();
+
+        if (!status) {
+            this.showNotification('Por favor seleccione un estado', 'error');
+            return;
+        }
+
+        // Actualizar la asignación en mockData
+        const assignmentIndex = mockData.assignments.findIndex(a => a.id === assignmentId);
+        if (assignmentIndex > -1) {
+            mockData.assignments[assignmentIndex].status = status;
+            if (notes) {
+                mockData.assignments[assignmentIndex].userNotes = notes;
+            }
+        }
+
+        console.log('Estado de asignación actualizado:', assignmentId, status);
+        this.showNotification('Estado actualizado correctamente', 'success');
+        this.closeModal();
+        this.loadAssignments();
+    }
+
+    uploadFileToProcess(processId, processType) {
+        this.showModal('Subir Archivo al Proceso', `
+            <form id="uploadFileForm">
+                <div class="form-group">
+                    <label for="fileType">Tipo de Archivo *</label>
+                    <select id="fileType" required>
+                        <option value="">Seleccione el tipo</option>
+                        <option value="receipt">Recibo</option>
+                        <option value="note">Nota</option>
+                        <option value="document">Documento</option>
+                        <option value="evidence">Evidencia</option>
+                        <option value="other">Otro</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="fileUpload">Seleccionar Archivo *</label>
+                    <input type="file" id="fileUpload" required accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt">
+                    <small>Formatos permitidos: PDF, DOC, DOCX, JPG, PNG, TXT (máx. 10MB)</small>
+                </div>
+                <div class="form-group">
+                    <label for="fileDescription">Descripción *</label>
+                    <textarea id="fileDescription" rows="3" required placeholder="Describa el contenido del archivo..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" onclick="app.saveFileUpload(${processId}, '${processType}')" class="btn-primary">
+                        <i class="fas fa-upload"></i> Subir Archivo
+                    </button>
+                    <button type="button" onclick="app.closeModal()" class="btn-secondary">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                </div>
+            </form>
+        `);
+    }
+
+    saveFileUpload(processId, processType) {
+        const fileType = document.getElementById('fileType').value;
+        const fileInput = document.getElementById('fileUpload');
+        const description = document.getElementById('fileDescription').value.trim();
+
+        if (!fileType || !fileInput.files[0] || !description) {
+            this.showNotification('Por favor complete todos los campos', 'error');
+            return;
+        }
+
+        const file = fileInput.files[0];
+        
+        // Validar tamaño del archivo (10MB máximo)
+        if (file.size > 10 * 1024 * 1024) {
+            this.showNotification('El archivo es demasiado grande (máximo 10MB)', 'error');
+            return;
+        }
+
+        // Simular subida del archivo
+        const newUpload = {
+            id: dataUtils.generateId(),
+            processType: processType,
+            processId: processId,
+            uploadedBy: this.currentUser.id,
+            fileName: file.name,
+            fileType: fileType,
+            uploadDate: new Date().toISOString().split('T')[0],
+            description: description,
+            fileSize: this.formatFileSize(file.size)
+        };
+
+        // Agregar a mockData
+        mockData.userUploads.push(newUpload);
+
+        console.log('Archivo subido:', newUpload);
+        this.showNotification(`Archivo "${file.name}" subido correctamente`, 'success');
+        this.closeModal();
+        this.loadAssignments();
+    }
+
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 }
 

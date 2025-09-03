@@ -1,148 +1,154 @@
-# Sistema de Gestión de Recuperación de Cartera Judicial y Extrajudicial
+# Sistema de Gestión Judicial - Extrajudicial
 
 ## Descripción
-Prototipo funcional de un sistema de gestión para la recuperación de cartera judicial y extrajudicial. Este sistema permite gestionar clientes, procesos judiciales, procesos extrajudiciales, alertas y reportes de manera integral.
 
-## Características Principales
+Sistema completo de gestión para procesos judiciales y extrajudiciales con funcionalidades avanzadas de seguimiento, notificaciones automáticas y gestión de clientes.
 
-### 🔐 Autenticación
-- Sistema de login con roles (admin/user)
-- Credenciales de demo:
-  - **Admin**: `admin` / `admin123`
-  - **Usuario**: `user` / `user123`
+## Características Implementadas
 
-### 📊 Dashboard
-- Métricas generales del sistema
-- Gráficos de procesos por estado
-- Actividad mensual del sistema
+### 🎯 Gráfico de Efectividad
+- **Gráfico de contacto vs conversión**: Muestra cuántos clientes fueron contactados vs cuántos se convirtieron en clientes efectivos
+- **Métricas en tiempo real**: Dashboard actualizado con estadísticas de efectividad
+- **Visualización clara**: Gráfico tipo doughnut con porcentajes y tooltips informativos
 
-### 👥 Gestión de Usuarios (Solo Admin)
-- Lista de usuarios del sistema
-- CRUD completo (Crear, Leer, Actualizar, Eliminar)
-- Gestión de roles y estados
+### 👥 Gestión Completa de Clientes
+- **Información personal extendida**: Nombres completos, CI, fecha de nacimiento, estado civil, profesión, ingresos
+- **Múltiples direcciones**: Principal, laboral, comercial con verificación de estado
+- **Búsqueda avanzada**: Por nombre completo o número de CI
+- **Integración con Google Maps**: Ubicación automática basada en dirección con coordenadas
 
-### 👤 Gestión de Clientes
-- Lista completa de clientes
-- Búsqueda y filtros por estado
-- Ficha detallada del cliente con:
-  - Información personal
-  - Referencias familiares
-  - Procesos asociados
-  - Documentos
+### 🌳 Árbol Genealógico
+- **Información familiar completa**:
+  - Padre: Nombre completo, CI, teléfono, dirección
+  - Madre: Nombre completo, CI, teléfono, dirección
+  - Cónyuge: Información completa de pareja/esposo(a)
+  - Hijos: Datos completos incluyendo edad
+  - Hermanos: Información de contacto y ubicación
+- **Vista organizada**: Pestañas separadas para fácil navegación
 
-### ⚖️ Procesos Judiciales
-- Lista de procesos judiciales
-- Estados: En Trámite, Sentencia, Archivado
-- Detalle completo con historial y documentos
-- Gestión de estados y actualizaciones
+### 💰 Documentos Financieros
+- **Pagaré**: Número, monto, fechas de firma y vencimiento, documento digital
+- **Desembolso**: Monto, fecha, método de pago, datos bancarios
+- **Tabla de amortización**: Cuotas detalladas con capital, interés, fechas y estado de pago
+- **Descarga de documentos**: Simulación de descarga de archivos PDF
 
-### 📋 Procesos Extrajudiciales
-- Lista de créditos y procesos extrajudiciales
-- Estados: Vigente, Vencido, Cancelado
-- Sistema de alertas configuradas
-- Gestión de fechas de vencimiento
+### 👨‍💼 Sistema de Roles y Asignaciones
+#### Administrador:
+- Asignar procesos a usuarios específicos
+- Definir prioridades (Alta, Media, Baja)
+- Establecer fechas límite
+- Agregar notas e instrucciones
+- Seguimiento del estado de asignaciones
 
-### �� Panel de Alertas
-- Alertas activas del sistema
-- Prioridades: Alta, Media, Baja
-- Filtrado por tipo y destinatario
-- Notificaciones en tiempo real
+#### Usuario:
+- Recibir asignaciones de procesos
+- Ver información completa del proceso asignado
+- Actualizar estado de la asignación
+- Subir archivos relacionados al proceso
+- Agregar notas de progreso
 
-### 📈 Reportes y Métricas
-- Gráficos de efectividad por tipo
-- Distribución de estados
-- Tendencia de recuperación
-- Filtros por período
+### 📁 Sistema de Carga de Archivos
+- **Tipos de archivo**: Recibos, notas, documentos, evidencias
+- **Formatos soportados**: PDF, DOC, DOCX, JPG, PNG, TXT
+- **Validación**: Tamaño máximo 10MB
+- **Organización**: Archivos organizados por proceso
+- **Descripciones**: Cada archivo incluye descripción detallada
 
-### ⚙️ Configuración
-- Parámetros generales del sistema
-- Tipos de alertas habilitadas
-- Configuración de reportes automáticos
-- Personalización de plazos
+### 🚨 Sistema de Notificaciones y Alertas
 
-## Tecnologías Utilizadas
+#### Alertas Urgentes para Admin:
+- **Créditos vencidos**: Notificación automática con días de retraso
+- **Próximos vencimientos**: Alertas 2 días antes del vencimiento
+- **Actualización automática**: Cada 5 minutos en el dashboard
+- **Acciones rápidas**: Ver cliente y enviar SMS directo
 
-- **Frontend**: HTML5, CSS3, JavaScript ES6+
-- **Gráficos**: Chart.js
-- **Iconos**: Font Awesome
-- **Datos**: Mock data en JavaScript
-- **Arquitectura**: SPA (Single Page Application)
+#### Mensajes Automáticos:
+- **Recordatorios automáticos**: 2 días antes del vencimiento para créditos nuevos
+- **Horario comercial**: Solo envía mensajes entre 9:00 AM - 6:00 PM
+- **Personalización**: Mensajes personalizados por cliente
+- **Registro**: Historial de mensajes enviados
 
-## Estructura del Proyecto
+### 📅 Calendario de Alertas Programadas
+- **Vista de calendario**: Interfaz visual para programar alertas
+- **Tipos de alerta**: Audiencias, seguimientos, pagos, documentos, reuniones
+- **Asignación**: Asignar alertas a usuarios específicos
+- **Recordatorios**: Configurables (1 hora a 1 semana antes)
+- **Navegación**: Por meses con vista completa de eventos
 
+## Estructura del Sistema
 
+### Autenticación
+- **Admin**: admin / admin123
+- **Usuario**: user / user123
+
+### Navegación por Roles
+
+#### Panel Administrador:
+1. Dashboard con alertas urgentes
+2. Gestión de usuarios
+3. Gestión completa de clientes
+4. Procesos judiciales
+5. Procesos extrajudiciales
+6. Sistema de asignaciones
+7. Calendario de alertas
+8. Panel de alertas
+9. Reportes y métricas
+10. Configuración
+
+#### Panel Usuario:
+1. Dashboard personal
+2. Ver clientes (solo lectura)
+3. Ver procesos
+4. Mis asignaciones
+5. Cargar archivos
+6. Alertas personales
+7. Reportes
+
+## Funcionalidades Técnicas
+
+### Búsqueda Avanzada
+- Búsqueda en tiempo real por nombre o CI
+- Filtros por estado (activo/inactivo)
+- Resultados instantáneos sin recarga de página
+
+### Notificaciones Dinámicas
+- Sistema de notificaciones en tiempo real
+- Diferentes tipos: éxito, error, información, advertencia
+- Auto-ocultado después de 5 segundos
+- Posicionamiento fijo en la parte superior
+
+### Gestión de Estados
+- Estados de procesos: Vigente, Vencido, Cancelado
+- Estados de asignaciones: Asignado, En Progreso, Completado
+- Actualización automática de métricas
+
+### Exportación de Datos
+- Exportación a CSV de todas las entidades
+- Respaldo completo del sistema en JSON
+- Restauración de datos desde archivo
 
 ## Instalación y Uso
 
-### Requisitos
-- Navegador web moderno (Chrome, Firefox, Safari, Edge)
-- No requiere servidor web ni base de datos
+1. Abrir `index.html` en un navegador web
+2. Usar credenciales de demo para acceder
+3. Navegar por las diferentes secciones según el rol
 
-### Pasos para ejecutar
-1. Descargar o clonar el proyecto
-2. Abrir el archivo `index.html` en el navegador
-3. Usar las credenciales de demo para acceder
+## Notas Técnicas
 
-### Navegación
-- **Sidebar**: Navegación principal entre secciones
-- **Breadcrumb**: Ubicación actual en el sistema
-- **Modales**: Para edición y visualización de detalles
-- **Notificaciones**: Banner superior para mensajes del sistema
+- **Google Maps**: Requiere API key válida (reemplazar YOUR_API_KEY)
+- **Datos**: Simulados con localStorage para persistencia
+- **Responsive**: Adaptado para dispositivos móviles
+- **Accesibilidad**: Soporte para lectores de pantalla y navegación por teclado
 
-## Funcionalidades Simuladas
+## Próximas Mejoras Sugeridas
 
-### CRUD Operations
-- Todos los formularios simulan guardado con `console.log`
-- Los datos se mantienen en memoria durante la sesión
-- Las operaciones de eliminación muestran confirmación
-
-### Búsqueda y Filtros
-- Búsqueda en tiempo real de clientes
-- Filtros por estado y tipo
-- Actualización dinámica de tablas
-
-### Gráficos y Reportes
-- Gráficos responsivos con Chart.js
-- Datos simulados para demostración
-- Filtros por período de tiempo
-
-## Personalización
-
-### Colores y Estilos
-- Paleta de colores neutra (blanco, gris, azul)
-- CSS modular y fácil de personalizar
-- Diseño responsivo para diferentes dispositivos
-
-### Datos Simulados
-- Modificar `js/data.js` para cambiar datos de ejemplo
-- Agregar nuevos tipos de procesos o estados
-- Personalizar métricas y reportes
-
-## Extensibilidad
-
-### Nuevas Funcionalidades
-- Agregar nuevas secciones al sidebar
-- Implementar nuevos tipos de reportes
-- Integrar con APIs externas
-
-### Base de Datos
-- Reemplazar mock data con llamadas a API
-- Implementar persistencia de datos
-- Agregar autenticación real
-
-## Notas de Desarrollo
-
-- El sistema está diseñado como prototipo funcional
-- Toda la funcionalidad está implementada en el frontend
-- Los datos se reinician al recargar la página
-- Ideal para demostraciones y pruebas de concepto
-
-## Soporte
-
-Para preguntas o sugerencias sobre el prototipo, revisar el código fuente o contactar al equipo de desarrollo.
+- Integración con API real de mensajería SMS
+- Conexión con base de datos real
+- Autenticación con JWT
+- Notificaciones push en tiempo real
+- Integración con sistemas bancarios
+- Reportes PDF automáticos
 
 ---
 
-**Versión**: 1.0.0  
-**Fecha**: Diciembre 2024  
-**Tipo**: Prototipo Funcional
+**Desarrollado para gestión eficiente de procesos judiciales y extrajudiciales con enfoque en la recuperación de cartera.**

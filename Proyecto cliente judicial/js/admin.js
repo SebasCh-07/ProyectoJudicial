@@ -1,7 +1,16 @@
 // Aplicación principal del sistema judicial
 class JudicialSystem {
     constructor() {
-        this.currentUser = JSON.parse(sessionStorage.getItem('currentUser')) || { name: 'Administrador', role: 'admin' };
+        // Verificar si hay sesión válida
+        const currentUser = sessionStorage.getItem('currentUser');
+        const userRole = sessionStorage.getItem('userRole');
+        
+        if (!currentUser || userRole !== 'admin') {
+            window.location.href = 'index.html';
+            return;
+        }
+        
+        this.currentUser = JSON.parse(currentUser);
         this.currentSection = 'dashboard';
         this.charts = {}; // Almacenar instancias de gráficos
         this.init();
@@ -12,6 +21,11 @@ class JudicialSystem {
         this.updateUserInfo();
         this.loadDashboard();
         this.loadSettings();
+        
+        // Inicializar sistema de mensajes automáticos
+        if (this.currentUser.role === 'admin') {
+            this.initializeAutomaticMessages();
+        }
     }
 
     setupEventListeners() {
@@ -147,6 +161,22 @@ class JudicialSystem {
                 this.showAddExtrajudicialModal();
             });
         }
+
+        // Botón Nueva Asignación
+        const addAssignmentBtn = document.getElementById('addAssignmentBtn');
+        if (addAssignmentBtn) {
+            addAssignmentBtn.addEventListener('click', () => {
+                this.showAddAssignmentModal();
+            });
+        }
+
+        // Botón Nueva Alerta Programada
+        const addScheduledAlertBtn = document.getElementById('addScheduledAlertBtn');
+        if (addScheduledAlertBtn) {
+            addScheduledAlertBtn.addEventListener('click', () => {
+                this.showAddScheduledAlertModal();
+            });
+        }
     }
 
 
@@ -154,10 +184,29 @@ class JudicialSystem {
     handleLogout() {
         this.currentUser = null;
         this.destroyAllCharts(); // Destruir todos los gráficos al cerrar sesión
+        
+        // Limpiar sessionStorage
         sessionStorage.removeItem('currentUser');
         sessionStorage.removeItem('userRole');
-        window.location.href = 'index.html';
+        sessionStorage.removeItem('loginTime');
+        
+        // Limpiar variables globales
+        window.currentUser = null;
+        window.userRole = null;
+        
+        // Limpiar intervalos
+        if (this.urgentAlertsInterval) {
+            clearInterval(this.urgentAlertsInterval);
+        }
+        if (this.messageCheckInterval) {
+            clearInterval(this.messageCheckInterval);
+        }
+        
+        // Mostrar notificación y redirigir
         this.showNotification('Sesión cerrada correctamente', 'info');
+        setTimeout(() => {
+            window.location.href = 'index.html';
+        }, 1000);
     }
 
 
@@ -197,6 +246,8 @@ class JudicialSystem {
             'clients': 'Gestión de Clientes',
             'judicial': 'Procesos Judiciales',
             'extrajudicial': 'Procesos Extrajudiciales',
+            'assignments': 'Gestión de Asignaciones',
+            'calendar': 'Calendario de Alertas',
             'alerts': 'Panel de Alertas',
             'reports': 'Reportes y Métricas',
             'settings': 'Configuración'
@@ -221,6 +272,12 @@ class JudicialSystem {
             case 'extrajudicial':
                 this.loadExtrajudicialProcesses();
                 break;
+            case 'assignments':
+                this.loadAssignments();
+                break;
+            case 'calendar':
+                this.loadCalendar();
+                break;
             case 'alerts':
                 this.loadAlerts();
                 break;
@@ -242,6 +299,11 @@ class JudicialSystem {
         document.getElementById('totalExtrajudicial').textContent = stats.totalExtrajudicial;
         document.getElementById('effectiveness').textContent = `${stats.effectiveness}%`;
 
+        // Mostrar alertas urgentes si es admin
+        if (this.currentUser.role === 'admin') {
+            this.showUrgentAlerts();
+        }
+
         // Crear gráficos solo si no existen
         this.createDashboardCharts();
     }
@@ -250,12 +312,68 @@ class JudicialSystem {
         const chartData = dataUtils.getChartData();
 
         // Destruir gráficos existentes si los hay
+        if (this.charts.contactEffectivenessChart) {
+            this.charts.contactEffectivenessChart.destroy();
+        }
         if (this.charts.processStatusChart) {
             this.charts.processStatusChart.destroy();
         }
         if (this.charts.monthlyActivityChart) {
             this.charts.monthlyActivityChart.destroy();
         }
+
+        // Gráfico de efectividad de contacto
+        const contactEffectivenessCtx = document.getElementById('contactEffectivenessChart').getContext('2d');
+        this.charts.contactEffectivenessChart = new Chart(contactEffectivenessCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Contactados', 'No Contactados', 'Convertidos', 'No Convertidos'],
+                datasets: [{
+                    data: [
+                        chartData.contactEffectivenessData['Clientes Contactados'],
+                        chartData.contactEffectivenessData['Clientes No Contactados'],
+                        chartData.contactEffectivenessData['Clientes Convertidos'],
+                        chartData.contactEffectivenessData['Clientes No Convertidos']
+                    ],
+                    backgroundColor: ['#27ae60', '#e74c3c', '#3498db', '#95a5a6'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            usePointStyle: true,
+                            font: {
+                                size: 11
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                layout: {
+                    padding: {
+                        top: 10,
+                        bottom: 10
+                    }
+                }
+            }
+        });
 
         // Gráfico de estados de procesos
         const processStatusCtx = document.getElementById('processStatusChart').getContext('2d');
@@ -430,6 +548,48 @@ class JudicialSystem {
                     </button>
                     <button class="btn-edit" onclick="app.editExtrajudicialProcess(${process.id})">
                         <i class="fas fa-edit"></i> Editar
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    loadAssignments() {
+        const tbody = document.getElementById('assignmentsTableBody');
+        tbody.innerHTML = '';
+
+        mockData.assignments.forEach(assignment => {
+            // Obtener información del cliente y usuario asignado
+            const assignedUser = mockData.users.find(u => u.id === assignment.assignedTo);
+            let clientName = 'Cliente no encontrado';
+            
+            if (assignment.processType === 'judicial') {
+                const process = mockData.judicialProcesses.find(p => p.id === assignment.processId);
+                clientName = process ? process.clientName : 'Proceso no encontrado';
+            } else if (assignment.processType === 'extrajudicial') {
+                const process = mockData.extrajudicialProcesses.find(p => p.id === assignment.processId);
+                clientName = process ? process.clientName : 'Proceso no encontrado';
+            }
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${assignment.id}</td>
+                <td><span class="badge ${assignment.processType === 'judicial' ? 'badge-info' : 'badge-secondary'}">${assignment.processType === 'judicial' ? 'Judicial' : 'Extrajudicial'}</span></td>
+                <td>${clientName}</td>
+                <td>${assignedUser ? assignedUser.name : 'Usuario no encontrado'}</td>
+                <td><span class="badge badge-${assignment.status === 'completed' ? 'active' : assignment.status === 'in_progress' ? 'warning' : 'secondary'}">${this.getAssignmentStatusText(assignment.status)}</span></td>
+                <td><span class="badge badge-${assignment.priority}">${assignment.priority.toUpperCase()}</span></td>
+                <td>${dataUtils.formatDate(assignment.dueDate)}</td>
+                <td>
+                    <button class="btn-edit" onclick="app.viewAssignment(${assignment.id})">
+                        <i class="fas fa-eye"></i> Ver
+                    </button>
+                    <button class="btn-edit" onclick="app.editAssignment(${assignment.id})">
+                        <i class="fas fa-edit"></i> Editar
+                    </button>
+                    <button class="btn-danger" onclick="app.deleteAssignment(${assignment.id})">
+                        <i class="fas fa-trash"></i> Eliminar
                     </button>
                 </td>
             `;
@@ -980,6 +1140,93 @@ class JudicialSystem {
         `);
     }
 
+    showAddAssignmentModal() {
+        const users = mockData.users.filter(u => u.status === 'activo' && u.role === 'user');
+        const judicialProcesses = mockData.judicialProcesses;
+        const extrajudicialProcesses = mockData.extrajudicialProcesses;
+
+        this.showModal('Nueva Asignación', `
+            <form id="addAssignmentForm">
+                <div class="form-group">
+                    <label for="newAssignmentType">Tipo de Proceso *</label>
+                    <select id="newAssignmentType" required onchange="app.updateProcessOptions()">
+                        <option value="">Seleccione el tipo</option>
+                        <option value="judicial">Judicial</option>
+                        <option value="extrajudicial">Extrajudicial</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="newAssignmentProcess">Proceso *</label>
+                    <select id="newAssignmentProcess" required disabled>
+                        <option value="">Primero seleccione el tipo de proceso</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="newAssignmentUser">Asignar a *</label>
+                    <select id="newAssignmentUser" required>
+                        <option value="">Seleccione un usuario</option>
+                        ${users.map(user => `<option value="${user.id}">${user.name}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="newAssignmentPriority">Prioridad *</label>
+                        <select id="newAssignmentPriority" required>
+                            <option value="">Seleccione prioridad</option>
+                            <option value="low">Baja</option>
+                            <option value="medium">Media</option>
+                            <option value="high">Alta</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="newAssignmentDueDate">Fecha Límite *</label>
+                        <input type="date" id="newAssignmentDueDate" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="newAssignmentNotes">Notas</label>
+                    <textarea id="newAssignmentNotes" rows="3" placeholder="Notas adicionales..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" onclick="app.saveNewAssignment()" class="btn-primary">
+                        <i class="fas fa-tasks"></i> Crear Asignación
+                    </button>
+                    <button type="button" onclick="app.closeModal()" class="btn-secondary">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                </div>
+            </form>
+        `);
+
+        // Establecer fecha mínima como hoy
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('newAssignmentDueDate').min = today;
+    }
+
+    updateProcessOptions() {
+        const processType = document.getElementById('newAssignmentType').value;
+        const processSelect = document.getElementById('newAssignmentProcess');
+        
+        processSelect.innerHTML = '<option value="">Seleccione un proceso</option>';
+        processSelect.disabled = !processType;
+
+        if (processType === 'judicial') {
+            mockData.judicialProcesses.forEach(process => {
+                const option = document.createElement('option');
+                option.value = process.id;
+                option.textContent = `${process.caseNumber} - ${process.clientName}`;
+                processSelect.appendChild(option);
+            });
+        } else if (processType === 'extrajudicial') {
+            mockData.extrajudicialProcesses.forEach(process => {
+                const option = document.createElement('option');
+                option.value = process.id;
+                option.textContent = `${process.creditNumber} - ${process.clientName}`;
+                processSelect.appendChild(option);
+            });
+        }
+    }
+
     // ===== FUNCIONES DE GUARDADO =====
 
     saveNewUser() {
@@ -1199,6 +1446,61 @@ class JudicialSystem {
         this.loadExtrajudicialProcesses();
     }
 
+    saveNewAssignment() {
+        const processType = document.getElementById('newAssignmentType').value;
+        const processId = parseInt(document.getElementById('newAssignmentProcess').value);
+        const assignedTo = parseInt(document.getElementById('newAssignmentUser').value);
+        const priority = document.getElementById('newAssignmentPriority').value;
+        const dueDate = document.getElementById('newAssignmentDueDate').value;
+        const notes = document.getElementById('newAssignmentNotes').value.trim();
+
+        if (!processType || !processId || !assignedTo || !priority || !dueDate) {
+            this.showNotification('Por favor complete todos los campos obligatorios', 'error');
+            return;
+        }
+
+        // Verificar que el proceso existe
+        let processExists = false;
+        if (processType === 'judicial') {
+            processExists = mockData.judicialProcesses.some(p => p.id === processId);
+        } else if (processType === 'extrajudicial') {
+            processExists = mockData.extrajudicialProcesses.some(p => p.id === processId);
+        }
+
+        if (!processExists) {
+            this.showNotification('El proceso seleccionado no existe', 'error');
+            return;
+        }
+
+        // Verificar que el usuario existe
+        const userExists = mockData.users.some(u => u.id === assignedTo && u.status === 'activo');
+        if (!userExists) {
+            this.showNotification('El usuario seleccionado no existe o está inactivo', 'error');
+            return;
+        }
+
+        const newAssignment = {
+            id: dataUtils.generateId(),
+            processType,
+            processId,
+            assignedBy: this.currentUser.id,
+            assignedTo,
+            assignedDate: new Date().toISOString().split('T')[0],
+            status: 'assigned',
+            priority,
+            notes,
+            dueDate
+        };
+
+        // Agregar a mockData
+        mockData.assignments.push(newAssignment);
+
+        console.log('Nueva asignación creada:', newAssignment);
+        this.showNotification('Asignación creada correctamente', 'success');
+        this.closeModal();
+        this.loadAssignments();
+    }
+
     // ===== FUNCIONES DE VALIDACIÓN =====
 
     validateEmail(email) {
@@ -1264,58 +1566,230 @@ class JudicialSystem {
     }
 
     viewClient(clientId) {
-        const client = dataUtils.getClientById(clientId);
-        const judicialProcesses = dataUtils.getJudicialProcessesByClient(clientId);
-        const extrajudicialProcesses = dataUtils.getExtrajudicialProcessesByClient(clientId);
+        const client = dataUtils.getClientFullProfile(clientId);
+        if (!client) {
+            this.showNotification('Cliente no encontrado', 'error');
+            return;
+        }
 
-        this.showModal('Ficha del Cliente', `
-            <div class="client-profile">
+        const judicialProcesses = client.processes.judicial;
+        const extrajudicialProcesses = client.processes.extrajudicial;
+
+        this.showModal('Ficha Completa del Cliente', `
+            <div class="client-profile-extended">
                 <div class="client-header">
-                    <h3>${client.name}</h3>
+                    <h3>${client.personalDocuments.fullName}</h3>
                     <span class="badge ${client.status === 'activo' ? 'badge-active' : 'badge-inactive'}">${client.status}</span>
+                    ${client.hasOverduePayments ? '<span class="badge badge-warning">Pagos Vencidos</span>' : ''}
                 </div>
                 
-                <div class="client-info">
-                    <div class="info-section">
-                        <h4>Información Personal</h4>
-                        <p><strong>Documento:</strong> ${client.document}</p>
-                        <p><strong>Dirección:</strong> ${client.address}</p>
-                        <p><strong>Teléfono:</strong> ${client.phone}</p>
-                        <p><strong>Email:</strong> ${client.email}</p>
+                <div class="client-tabs">
+                    <div class="tab-nav">
+                        <button class="tab-btn active" onclick="app.switchClientTab('personal')">Personal</button>
+                        <button class="tab-btn" onclick="app.switchClientTab('family')">Familia</button>
+                        <button class="tab-btn" onclick="app.switchClientTab('financial')">Financiero</button>
+                        <button class="tab-btn" onclick="app.switchClientTab('location')">Ubicación</button>
+                        <button class="tab-btn" onclick="app.switchClientTab('processes')">Procesos</button>
                     </div>
                     
+                    <div class="tab-content">
+                        <!-- Personal Tab -->
+                        <div id="personal-tab" class="tab-pane active">
                     <div class="info-section">
-                        <h4>Referencias Familiares</h4>
-                        ${client.familyReferences.length > 0 ?
-                client.familyReferences.map(ref =>
-                    `<p><strong>${ref.name}</strong> (${ref.relationship}) - ${ref.phone}</p>`
-                ).join('') :
-                '<p>No hay referencias familiares</p>'
+                        <h4>Información Personal</h4>
+                                <div class="info-grid">
+                                    <div><strong>Nombre Completo:</strong> ${client.personalDocuments.fullName}</div>
+                                    <div><strong>CI:</strong> ${client.personalDocuments.ci}</div>
+                                    <div><strong>Fecha Nacimiento:</strong> ${dataUtils.formatDate(client.personalDocuments.birthDate)}</div>
+                                    <div><strong>Estado Civil:</strong> ${client.personalDocuments.civilStatus}</div>
+                                    <div><strong>Profesión:</strong> ${client.personalDocuments.profession}</div>
+                                    <div><strong>Ingresos:</strong> ${dataUtils.formatCurrency(client.personalDocuments.income)}</div>
+                                    <div><strong>Teléfono:</strong> ${client.phone}</div>
+                                    <div><strong>Email:</strong> ${client.email}</div>
+                    </div>
+                    
+                                <h5>Direcciones</h5>
+                                ${client.personalDocuments.addresses.map(addr => `
+                                    <p><strong>${addr.type}:</strong> ${addr.address} 
+                                    <span class="badge ${addr.verified ? 'badge-active' : 'badge-inactive'}">
+                                        ${addr.verified ? 'Verificada' : 'No Verificada'}
+                                    </span></p>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <!-- Family Tab -->
+                        <div id="family-tab" class="tab-pane hidden">
+                    <div class="info-section">
+                                <h4>Árbol Genealógico</h4>
+                                <div class="family-tree">
+                                    <div class="family-level">
+                                        <h5>Padres</h5>
+                                        <div class="family-members">
+                                            ${client.familyTree.father ? `
+                                                <div class="family-member">
+                                                    <strong>Padre:</strong> ${client.familyTree.father.name}<br>
+                                                    <small>CI: ${client.familyTree.father.ci} | Tel: ${client.familyTree.father.phone}</small><br>
+                                                    <small>Dir: ${client.familyTree.father.address}</small>
+                                                </div>
+                                            ` : '<p>No hay información del padre</p>'}
+                                            
+                                            ${client.familyTree.mother ? `
+                                                <div class="family-member">
+                                                    <strong>Madre:</strong> ${client.familyTree.mother.name}<br>
+                                                    <small>CI: ${client.familyTree.mother.ci} | Tel: ${client.familyTree.mother.phone}</small><br>
+                                                    <small>Dir: ${client.familyTree.mother.address}</small>
+                                                </div>
+                                            ` : '<p>No hay información de la madre</p>'}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="family-level">
+                                        <h5>Cónyuge</h5>
+                                        ${client.familyTree.spouse ? `
+                                            <div class="family-member">
+                                                <strong>${client.personalDocuments.civilStatus === 'Casado' ? 'Esposo/a' : 'Pareja'}:</strong> ${client.familyTree.spouse.name}<br>
+                                                <small>CI: ${client.familyTree.spouse.ci} | Tel: ${client.familyTree.spouse.phone}</small><br>
+                                                <small>Dir: ${client.familyTree.spouse.address}</small>
+                                            </div>
+                                        ` : '<p>No hay información del cónyuge</p>'}
+                                    </div>
+                                    
+                                    <div class="family-level">
+                                        <h5>Hijos</h5>
+                                        ${client.familyTree.children.length > 0 ? 
+                                            client.familyTree.children.map(child => `
+                                                <div class="family-member">
+                                                    <strong>${child.name}</strong> (${child.age} años)<br>
+                                                    <small>CI: ${child.ci} | Tel: ${child.phone}</small><br>
+                                                    <small>Dir: ${child.address}</small>
+                                                </div>
+                                            `).join('') : 
+                                            '<p>No hay información de hijos</p>'
             }
                     </div>
                     
+                                    <div class="family-level">
+                                        <h5>Hermanos</h5>
+                                        ${client.familyTree.siblings.length > 0 ? 
+                                            client.familyTree.siblings.map(sibling => `
+                                                <div class="family-member">
+                                                    <strong>${sibling.name}</strong><br>
+                                                    <small>CI: ${sibling.ci} | Tel: ${sibling.phone}</small><br>
+                                                    <small>Dir: ${sibling.address}</small>
+                                                </div>
+                                            `).join('') : 
+                                            '<p>No hay información de hermanos</p>'
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Financial Tab -->
+                        <div id="financial-tab" class="tab-pane hidden">
+                            <div class="info-section">
+                                <h4>Información Financiera</h4>
+                                <p><strong>Deuda Total:</strong> ${dataUtils.formatCurrency(client.totalDebt)}</p>
+                                
+                                ${client.promissoryNote ? `
+                                    <h5>Pagaré</h5>
+                                    <div class="financial-doc">
+                                        <p><strong>Número:</strong> ${client.promissoryNote.number}</p>
+                                        <p><strong>Monto:</strong> ${dataUtils.formatCurrency(client.promissoryNote.amount)}</p>
+                                        <p><strong>Fecha Vencimiento:</strong> ${dataUtils.formatDate(client.promissoryNote.dueDate)}</p>
+                                        <p><strong>Fecha Firma:</strong> ${dataUtils.formatDate(client.promissoryNote.signedDate)}</p>
+                                        <p><strong>Documento:</strong> <a href="#" onclick="app.downloadDocument('${client.promissoryNote.document}')">${client.promissoryNote.document}</a></p>
+                                    </div>
+                                ` : '<p>No hay pagaré registrado</p>'}
+                                
+                                ${client.disbursement ? `
+                                    <h5>Desembolso</h5>
+                                    <div class="financial-doc">
+                                        <p><strong>Monto:</strong> ${dataUtils.formatCurrency(client.disbursement.amount)}</p>
+                                        <p><strong>Fecha:</strong> ${dataUtils.formatDate(client.disbursement.date)}</p>
+                                        <p><strong>Método:</strong> ${client.disbursement.method}</p>
+                                        <p><strong>Cuenta:</strong> ${client.disbursement.accountNumber}</p>
+                                        <p><strong>Banco:</strong> ${client.disbursement.bank}</p>
+                                    </div>
+                                ` : '<p>No hay desembolso registrado</p>'}
+                                
+                                ${client.amortizationTable && client.amortizationTable.length > 0 ? `
+                                    <h5>Tabla de Amortización</h5>
+                                    <div class="table-container">
+                                        <table class="data-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Cuota</th>
+                                                    <th>Fecha Venc.</th>
+                                                    <th>Capital</th>
+                                                    <th>Interés</th>
+                                                    <th>Total</th>
+                                                    <th>Estado</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${client.amortizationTable.map(installment => `
+                                                    <tr>
+                                                        <td>${installment.installment}</td>
+                                                        <td>${dataUtils.formatDate(installment.dueDate)}</td>
+                                                        <td>${dataUtils.formatCurrency(installment.capital)}</td>
+                                                        <td>${dataUtils.formatCurrency(installment.interest)}</td>
+                                                        <td>${dataUtils.formatCurrency(installment.total)}</td>
+                                                        <td><span class="badge ${installment.status === 'pagado' ? 'badge-active' : 'badge-warning'}">${installment.status}</span></td>
+                                                    </tr>
+                                                `).join('')}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                ` : '<p>No hay tabla de amortización</p>'}
+                            </div>
+                        </div>
+                        
+                        <!-- Location Tab -->
+                        <div id="location-tab" class="tab-pane hidden">
+                            <div class="info-section">
+                                <h4>Ubicación en Google Maps</h4>
+                                <div id="clientMap" style="height: 400px; width: 100%; border-radius: 8px; margin-top: 10px;"></div>
+                                <p style="margin-top: 10px;"><strong>Coordenadas:</strong> ${client.personalDocuments.coordinates.lat}, ${client.personalDocuments.coordinates.lng}</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Processes Tab -->
+                        <div id="processes-tab" class="tab-pane hidden">
                     <div class="info-section">
                         <h4>Procesos Judiciales</h4>
                         ${judicialProcesses.length > 0 ?
                 judicialProcesses.map(process =>
-                    `<p><strong>${process.caseNumber}</strong> - ${dataUtils.getProcessStatusText(process.status)}</p>`
+                                        `<div class="process-item">
+                                            <p><strong>${process.caseNumber}</strong> - ${dataUtils.getProcessStatusText(process.status)}</p>
+                                            <small>Monto: ${dataUtils.formatCurrency(process.amount)} | Juzgado: ${process.court}</small>
+                                        </div>`
                 ).join('') :
                 '<p>No hay procesos judiciales</p>'
             }
-                    </div>
                     
-                    <div class="info-section">
                         <h4>Procesos Extrajudiciales</h4>
                         ${extrajudicialProcesses.length > 0 ?
                 extrajudicialProcesses.map(process =>
-                    `<p><strong>${process.creditNumber}</strong> - ${dataUtils.formatCurrency(process.amount)}</p>`
+                                        `<div class="process-item">
+                                            <p><strong>${process.creditNumber}</strong> - ${dataUtils.getProcessStatusText(process.status)}</p>
+                                            <small>Monto: ${dataUtils.formatCurrency(process.amount)} | Vencimiento: ${dataUtils.formatDate(process.dueDate)}</small>
+                                        </div>`
                 ).join('') :
                 '<p>No hay procesos extrajudiciales</p>'
             }
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         `);
+        
+        // Inicializar Google Maps después de que se muestre el modal
+        setTimeout(() => {
+            this.initializeClientMap(client.personalDocuments.coordinates, client.personalDocuments.addresses[0].address);
+        }, 100);
     }
 
     editClient(clientId) {
@@ -1864,6 +2338,940 @@ class JudicialSystem {
             }
         };
         reader.readAsText(file);
+    }
+
+    // ===== FUNCIONES PARA PESTAÑAS DE CLIENTE =====
+
+    switchClientTab(tabName) {
+        // Ocultar todas las pestañas
+        document.querySelectorAll('.tab-pane').forEach(pane => {
+            pane.classList.add('hidden');
+            pane.classList.remove('active');
+        });
+
+        // Desactivar todos los botones
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+
+        // Mostrar la pestaña seleccionada
+        const targetTab = document.getElementById(`${tabName}-tab`);
+        if (targetTab) {
+            targetTab.classList.remove('hidden');
+            targetTab.classList.add('active');
+        }
+
+        // Activar el botón correspondiente
+        event.target.classList.add('active');
+
+        // Si es la pestaña de ubicación, inicializar el mapa
+        if (tabName === 'location') {
+            setTimeout(() => {
+                const mapElement = document.getElementById('clientMap');
+                if (mapElement && !mapElement.hasChildNodes()) {
+                    // El mapa se inicializa en viewClient
+                }
+            }, 100);
+        }
+    }
+
+    initializeClientMap(coordinates, address) {
+        const mapContainer = document.getElementById('clientMap');
+        
+        // Crear una vista de mapa alternativa usando OpenStreetMap
+        mapContainer.innerHTML = `
+            <div style="height: 100%; background: #f5f5f5; border-radius: 8px; position: relative; overflow: hidden;">
+                <div style="position: absolute; top: 10px; left: 10px; right: 10px; background: white; padding: 10px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 10;">
+                    <h4 style="margin: 0 0 5px 0; color: #333;"><i class="fas fa-map-marker-alt" style="color: #dc3545;"></i> Ubicación del Cliente</h4>
+                    <p style="margin: 0; font-size: 14px; color: #666;">${address}</p>
+                    <p style="margin: 5px 0 0 0; font-size: 12px; color: #999;">Coordenadas: ${coordinates.lat}, ${coordinates.lng}</p>
+                </div>
+                
+                <iframe 
+                    width="100%" 
+                    height="100%" 
+                    frameborder="0" 
+                    scrolling="no" 
+                    marginheight="0" 
+                    marginwidth="0" 
+                    style="border-radius: 8px;"
+                    src="https://www.openstreetmap.org/export/embed.html?bbox=${coordinates.lng-0.01}%2C${coordinates.lat-0.01}%2C${coordinates.lng+0.01}%2C${coordinates.lat+0.01}&amp;layer=mapnik&amp;marker=${coordinates.lat}%2C${coordinates.lng}">
+                </iframe>
+                
+                <div style="position: absolute; bottom: 10px; right: 10px; z-index: 10;">
+                    <a href="https://www.google.com/maps?q=${coordinates.lat},${coordinates.lng}" 
+                       target="_blank" 
+                       class="btn-primary" 
+                       style="text-decoration: none; padding: 8px 12px; font-size: 12px;">
+                        <i class="fas fa-external-link-alt"></i> Ver en Google Maps
+                    </a>
+                </div>
+            </div>
+        `;
+    }
+
+    downloadDocument(documentName) {
+        // Simular descarga de documento
+        this.showNotification(`Descargando documento: ${documentName}`, 'info');
+        console.log('Simulando descarga de:', documentName);
+    }
+
+    // ===== FUNCIONES PARA ASIGNACIONES =====
+
+    getAssignmentStatusText(status) {
+        const statusMap = {
+            'assigned': 'Asignado',
+            'in_progress': 'En Progreso',
+            'completed': 'Completado',
+            'cancelled': 'Cancelado'
+        };
+        return statusMap[status] || status;
+    }
+
+    viewAssignment(assignmentId) {
+        const assignment = mockData.assignments.find(a => a.id === assignmentId);
+        if (!assignment) {
+            this.showNotification('Asignación no encontrada', 'error');
+            return;
+        }
+
+        const assignedUser = mockData.users.find(u => u.id === assignment.assignedTo);
+        const assignedBy = mockData.users.find(u => u.id === assignment.assignedBy);
+        
+        let processInfo = 'Proceso no encontrado';
+        if (assignment.processType === 'judicial') {
+            const process = mockData.judicialProcesses.find(p => p.id === assignment.processId);
+            if (process) {
+                processInfo = `<strong>Caso:</strong> ${process.caseNumber}<br>
+                              <strong>Cliente:</strong> ${process.clientName}<br>
+                              <strong>Juzgado:</strong> ${process.court}<br>
+                              <strong>Monto:</strong> ${dataUtils.formatCurrency(process.amount)}`;
+            }
+        } else if (assignment.processType === 'extrajudicial') {
+            const process = mockData.extrajudicialProcesses.find(p => p.id === assignment.processId);
+            if (process) {
+                processInfo = `<strong>Crédito:</strong> ${process.creditNumber}<br>
+                              <strong>Cliente:</strong> ${process.clientName}<br>
+                              <strong>Monto:</strong> ${dataUtils.formatCurrency(process.amount)}<br>
+                              <strong>Vencimiento:</strong> ${dataUtils.formatDate(process.dueDate)}`;
+            }
+        }
+
+        this.showModal('Detalle de Asignación', `
+            <div class="assignment-detail">
+                <div class="assignment-header">
+                    <h3>Asignación #${assignment.id}</h3>
+                    <span class="badge badge-${assignment.status === 'completed' ? 'active' : assignment.status === 'in_progress' ? 'warning' : 'secondary'}">
+                        ${this.getAssignmentStatusText(assignment.status)}
+                    </span>
+                </div>
+                
+                <div class="info-section">
+                    <h4>Información General</h4>
+                    <p><strong>Tipo de Proceso:</strong> ${assignment.processType === 'judicial' ? 'Judicial' : 'Extrajudicial'}</p>
+                    <p><strong>Asignado por:</strong> ${assignedBy ? assignedBy.name : 'Usuario no encontrado'}</p>
+                    <p><strong>Asignado a:</strong> ${assignedUser ? assignedUser.name : 'Usuario no encontrado'}</p>
+                    <p><strong>Fecha de Asignación:</strong> ${dataUtils.formatDate(assignment.assignedDate)}</p>
+                    <p><strong>Fecha Límite:</strong> ${dataUtils.formatDate(assignment.dueDate)}</p>
+                    <p><strong>Prioridad:</strong> <span class="badge badge-${assignment.priority}">${assignment.priority.toUpperCase()}</span></p>
+                </div>
+                
+                <div class="info-section">
+                    <h4>Información del Proceso</h4>
+                    <p>${processInfo}</p>
+                </div>
+                
+                <div class="info-section">
+                    <h4>Notas</h4>
+                    <p>${assignment.notes || 'No hay notas adicionales'}</p>
+                </div>
+            </div>
+        `);
+    }
+
+    editAssignment(assignmentId) {
+        const assignment = mockData.assignments.find(a => a.id === assignmentId);
+        if (!assignment) {
+            this.showNotification('Asignación no encontrada', 'error');
+            return;
+        }
+
+        const users = mockData.users.filter(u => u.status === 'activo' && u.role === 'user');
+
+        this.showModal('Editar Asignación', `
+            <form id="editAssignmentForm">
+                <div class="form-group">
+                    <label for="editAssignmentUser">Asignar a *</label>
+                    <select id="editAssignmentUser" required>
+                        ${users.map(user => 
+                            `<option value="${user.id}" ${user.id === assignment.assignedTo ? 'selected' : ''}>${user.name}</option>`
+                        ).join('')}
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editAssignmentStatus">Estado *</label>
+                        <select id="editAssignmentStatus" required>
+                            <option value="assigned" ${assignment.status === 'assigned' ? 'selected' : ''}>Asignado</option>
+                            <option value="in_progress" ${assignment.status === 'in_progress' ? 'selected' : ''}>En Progreso</option>
+                            <option value="completed" ${assignment.status === 'completed' ? 'selected' : ''}>Completado</option>
+                            <option value="cancelled" ${assignment.status === 'cancelled' ? 'selected' : ''}>Cancelado</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editAssignmentPriority">Prioridad *</label>
+                        <select id="editAssignmentPriority" required>
+                            <option value="low" ${assignment.priority === 'low' ? 'selected' : ''}>Baja</option>
+                            <option value="medium" ${assignment.priority === 'medium' ? 'selected' : ''}>Media</option>
+                            <option value="high" ${assignment.priority === 'high' ? 'selected' : ''}>Alta</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="editAssignmentDueDate">Fecha Límite *</label>
+                    <input type="date" id="editAssignmentDueDate" value="${assignment.dueDate}" required>
+                </div>
+                <div class="form-group">
+                    <label for="editAssignmentNotes">Notas</label>
+                    <textarea id="editAssignmentNotes" rows="3" placeholder="Notas adicionales...">${assignment.notes || ''}</textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" onclick="app.saveAssignment(${assignmentId})" class="btn-primary">
+                        <i class="fas fa-save"></i> Guardar Cambios
+                    </button>
+                    <button type="button" onclick="app.closeModal()" class="btn-secondary">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                </div>
+            </form>
+        `);
+    }
+
+    saveAssignment(assignmentId) {
+        const assignedTo = parseInt(document.getElementById('editAssignmentUser').value);
+        const status = document.getElementById('editAssignmentStatus').value;
+        const priority = document.getElementById('editAssignmentPriority').value;
+        const dueDate = document.getElementById('editAssignmentDueDate').value;
+        const notes = document.getElementById('editAssignmentNotes').value.trim();
+
+        if (!assignedTo || !status || !priority || !dueDate) {
+            this.showNotification('Por favor complete todos los campos obligatorios', 'error');
+            return;
+        }
+
+        // Actualizar la asignación en mockData
+        const assignmentIndex = mockData.assignments.findIndex(a => a.id === assignmentId);
+        if (assignmentIndex > -1) {
+            mockData.assignments[assignmentIndex] = {
+                ...mockData.assignments[assignmentIndex],
+                assignedTo,
+                status,
+                priority,
+                dueDate,
+                notes
+            };
+        }
+
+        console.log('Asignación actualizada:', assignmentId);
+        this.showNotification('Asignación actualizada correctamente', 'success');
+        this.closeModal();
+        this.loadAssignments();
+    }
+
+    deleteAssignment(assignmentId) {
+        if (confirm('¿Está seguro de que desea eliminar esta asignación?')) {
+            const index = mockData.assignments.findIndex(a => a.id === assignmentId);
+            if (index > -1) {
+                mockData.assignments.splice(index, 1);
+            }
+
+            console.log('Asignación eliminada:', assignmentId);
+            this.showNotification('Asignación eliminada correctamente', 'success');
+            this.loadAssignments();
+        }
+    }
+
+    // ===== FUNCIONES DE ALERTAS URGENTES =====
+
+    showUrgentAlerts() {
+        const urgentAlerts = dataUtils.getUrgentAlerts();
+        const container = document.getElementById('urgentAlertsContainer');
+
+        if (urgentAlerts.length === 0) {
+            container.innerHTML = '';
+            return;
+        }
+
+        const urgentCount = urgentAlerts.filter(alert => alert.type === 'overdue').length;
+        const soonCount = urgentAlerts.filter(alert => alert.type === 'due_soon').length;
+
+        container.innerHTML = `
+            <div class="urgent-alerts">
+                <h4><i class="fas fa-exclamation-triangle"></i> Alertas Urgentes (${urgentAlerts.length})</h4>
+                <div class="urgent-alerts-summary">
+                    ${urgentCount > 0 ? `<span class="urgent-stat"><strong>${urgentCount}</strong> créditos vencidos</span>` : ''}
+                    ${soonCount > 0 ? `<span class="urgent-stat"><strong>${soonCount}</strong> próximos a vencer</span>` : ''}
+                </div>
+                <div class="urgent-alerts-list">
+                    ${urgentAlerts.slice(0, 5).map(alert => `
+                        <div class="urgent-alert-item ${alert.type}">
+                            <div class="alert-content">
+                                <span class="alert-message">${alert.message}</span>
+                                <small class="alert-meta">
+                                    ${alert.type === 'overdue' ? `${alert.daysOverdue} días de retraso` : `Vence en ${alert.daysUntilDue} días`}
+                                </small>
+                            </div>
+                            <div class="alert-actions">
+                                <button class="btn-sm btn-primary" onclick="app.viewClientFromAlert(${alert.clientId})">
+                                    <i class="fas fa-user"></i> Ver Cliente
+                                </button>
+                                <button class="btn-sm btn-secondary" onclick="app.sendAutomaticMessage(${alert.clientId}, ${alert.daysUntilDue || 0})">
+                                    <i class="fas fa-sms"></i> Enviar SMS
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                    ${urgentAlerts.length > 5 ? `
+                        <div class="show-more-alerts">
+                            <button class="btn-link" onclick="app.showAllUrgentAlerts()">
+                                Ver todas las alertas (${urgentAlerts.length - 5} más)
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+
+        // Configurar actualización automática cada 5 minutos
+        if (!this.urgentAlertsInterval) {
+            this.urgentAlertsInterval = setInterval(() => {
+                if (this.currentSection === 'dashboard') {
+                    this.showUrgentAlerts();
+                }
+            }, 5 * 60 * 1000); // 5 minutos
+        }
+    }
+
+    viewClientFromAlert(clientId) {
+        this.viewClient(clientId);
+    }
+
+    sendAutomaticMessage(clientId, daysUntilDue) {
+        const message = dataUtils.generateAutomaticMessage(clientId, daysUntilDue);
+        
+        if (!message) {
+            this.showNotification('No se pudo generar el mensaje', 'error');
+            return;
+        }
+
+        this.showModal('Enviar Mensaje Automático', `
+            <div class="message-preview">
+                <h4>Mensaje a enviar:</h4>
+                <div class="message-content">
+                    <p><strong>Destinatario:</strong> ${message.phone}</p>
+                    <div class="message-text">
+                        ${message.message}
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" onclick="app.confirmSendMessage(${clientId}, '${message.phone}', '${message.message.replace(/'/g, "\\'")}')" class="btn-primary">
+                        <i class="fas fa-paper-plane"></i> Enviar Mensaje
+                    </button>
+                    <button type="button" onclick="app.closeModal()" class="btn-secondary">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                </div>
+            </div>
+        `);
+    }
+
+    confirmSendMessage(clientId, phone, message) {
+        // Simular envío de mensaje
+        const newMessage = {
+            id: dataUtils.generateId(),
+            clientId: clientId,
+            phone: phone,
+            message: message,
+            sentDate: new Date().toISOString().split('T')[0],
+            status: 'sent',
+            type: 'reminder'
+        };
+
+        mockData.automaticMessages.push(newMessage);
+
+        console.log('Mensaje enviado:', newMessage);
+        this.showNotification('Mensaje enviado correctamente', 'success');
+        this.closeModal();
+    }
+
+    showAllUrgentAlerts() {
+        const urgentAlerts = dataUtils.getUrgentAlerts();
+        
+        this.showModal('Todas las Alertas Urgentes', `
+            <div class="all-urgent-alerts">
+                <div class="alerts-summary">
+                    <p><strong>Total de alertas:</strong> ${urgentAlerts.length}</p>
+                </div>
+                <div class="alerts-list">
+                    ${urgentAlerts.map(alert => `
+                        <div class="urgent-alert-item ${alert.type}">
+                            <div class="alert-content">
+                                <span class="alert-message">${alert.message}</span>
+                                <small class="alert-meta">
+                                    ${alert.type === 'overdue' ? `${alert.daysOverdue} días de retraso` : `Vence en ${alert.daysUntilDue} días`}
+                                </small>
+                            </div>
+                            <div class="alert-actions">
+                                <button class="btn-sm btn-primary" onclick="app.viewClientFromAlert(${alert.clientId}); app.closeModal();">
+                                    <i class="fas fa-user"></i> Ver Cliente
+                                </button>
+                                <button class="btn-sm btn-secondary" onclick="app.sendAutomaticMessage(${alert.clientId}, ${alert.daysUntilDue || 0})">
+                                    <i class="fas fa-sms"></i> SMS
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `);
+    }
+
+    // ===== SISTEMA DE MENSAJES AUTOMÁTICOS =====
+
+    initializeAutomaticMessages() {
+        // Configurar verificación automática de mensajes cada hora
+        if (!this.messageCheckInterval) {
+            this.messageCheckInterval = setInterval(() => {
+                this.checkAndSendAutomaticMessages();
+            }, 60 * 60 * 1000); // 1 hora
+        }
+
+        // Ejecutar verificación inicial
+        this.checkAndSendAutomaticMessages();
+    }
+
+    checkAndSendAutomaticMessages() {
+        const settings = mockData.settings.automaticMessages;
+        
+        if (!settings.enabled) {
+            return;
+        }
+
+        const today = new Date();
+        const currentHour = today.getHours();
+        const startHour = parseInt(settings.businessHours.start.split(':')[0]);
+        const endHour = parseInt(settings.businessHours.end.split(':')[0]);
+
+        // Solo enviar mensajes en horario comercial
+        if (currentHour < startHour || currentHour >= endHour) {
+            return;
+        }
+
+        mockData.extrajudicialProcesses.forEach(process => {
+            if (process.status === 'vigente') {
+                const daysUntilDue = dataUtils.getDaysUntilDue(process.dueDate);
+                
+                // Verificar si debe enviarse mensaje según configuración
+                if (settings.reminderDays.includes(daysUntilDue)) {
+                    // Verificar si ya se envió mensaje hoy
+                    const todayString = today.toISOString().split('T')[0];
+                    const alreadySent = mockData.automaticMessages.some(msg => 
+                        msg.clientId === process.clientId && 
+                        msg.sentDate === todayString
+                    );
+
+                    if (!alreadySent) {
+                        this.sendScheduledMessage(process.clientId, daysUntilDue);
+                    }
+                }
+            }
+        });
+    }
+
+    sendScheduledMessage(clientId, daysUntilDue) {
+        const message = dataUtils.generateAutomaticMessage(clientId, daysUntilDue);
+        
+        if (message) {
+            mockData.automaticMessages.push(message);
+            console.log('Mensaje automático programado enviado:', message);
+            
+            // Mostrar notificación solo al admin
+            if (this.currentUser.role === 'admin') {
+                this.showNotification(`Mensaje automático enviado a ${message.phone}`, 'info');
+            }
+        }
+    }
+
+    // ===== FUNCIONES DEL CALENDARIO =====
+
+    loadCalendar() {
+        this.currentCalendarDate = new Date();
+        this.renderCalendar();
+        this.loadScheduledAlerts();
+    }
+
+    renderCalendar() {
+        const year = this.currentCalendarDate.getFullYear();
+        const month = this.currentCalendarDate.getMonth();
+        
+        // Actualizar título del mes
+        const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                           'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        document.getElementById('currentMonth').textContent = `${monthNames[month]} ${year}`;
+
+        // Obtener primer día del mes y número de días
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const daysInMonth = lastDay.getDate();
+        const startingDayOfWeek = firstDay.getDay();
+
+        const calendarGrid = document.getElementById('calendarGrid');
+        calendarGrid.innerHTML = '';
+
+        // Obtener alertas para este mes
+        const monthAlerts = mockData.scheduledAlerts.filter(alert => {
+            const alertDate = new Date(alert.date);
+            return alertDate.getMonth() === month && alertDate.getFullYear() === year;
+        });
+
+        // Días del mes anterior (para completar la primera semana)
+        const prevMonth = new Date(year, month - 1, 0);
+        const prevMonthDays = prevMonth.getDate();
+        
+        for (let i = startingDayOfWeek - 1; i >= 0; i--) {
+            const dayNum = prevMonthDays - i;
+            const dayElement = this.createCalendarDay(dayNum, true, []);
+            calendarGrid.appendChild(dayElement);
+        }
+
+        // Días del mes actual
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dayAlerts = monthAlerts.filter(alert => {
+                const alertDate = new Date(alert.date);
+                return alertDate.getDate() === day;
+            });
+            
+            const isToday = this.isToday(year, month, day);
+            const dayElement = this.createCalendarDay(day, false, dayAlerts, isToday);
+            calendarGrid.appendChild(dayElement);
+        }
+
+        // Días del mes siguiente (para completar la última semana)
+        const totalCells = calendarGrid.children.length;
+        const remainingCells = 42 - totalCells; // 6 semanas × 7 días
+        
+        for (let day = 1; day <= remainingCells; day++) {
+            const dayElement = this.createCalendarDay(day, true, []);
+            calendarGrid.appendChild(dayElement);
+        }
+    }
+
+    createCalendarDay(dayNum, isOtherMonth, alerts, isToday = false) {
+        const dayElement = document.createElement('div');
+        dayElement.className = `calendar-day ${isOtherMonth ? 'other-month' : ''} ${isToday ? 'today' : ''} ${alerts.length > 0 ? 'has-events' : ''}`;
+        
+        let eventsHtml = '';
+        if (alerts.length > 0) {
+            eventsHtml = alerts.slice(0, 3).map(alert => 
+                `<div class="calendar-event ${alert.type || 'default'}" onclick="app.viewScheduledAlert(${alert.id})" title="${alert.title}">
+                    ${alert.title.substring(0, 15)}${alert.title.length > 15 ? '...' : ''}
+                </div>`
+            ).join('');
+            
+            if (alerts.length > 3) {
+                eventsHtml += `<div class="calendar-event-more">+${alerts.length - 3} más</div>`;
+            }
+        }
+
+        dayElement.innerHTML = `
+            <div class="calendar-day-number">${dayNum}</div>
+            ${eventsHtml}
+        `;
+
+        if (!isOtherMonth) {
+            dayElement.addEventListener('click', () => {
+                this.showAddAlertOnDate(this.currentCalendarDate.getFullYear(), this.currentCalendarDate.getMonth(), dayNum);
+            });
+        }
+
+        return dayElement;
+    }
+
+    isToday(year, month, day) {
+        const today = new Date();
+        return today.getFullYear() === year && 
+               today.getMonth() === month && 
+               today.getDate() === day;
+    }
+
+    previousMonth() {
+        this.currentCalendarDate.setMonth(this.currentCalendarDate.getMonth() - 1);
+        this.renderCalendar();
+    }
+
+    nextMonth() {
+        this.currentCalendarDate.setMonth(this.currentCalendarDate.getMonth() + 1);
+        this.renderCalendar();
+    }
+
+    loadScheduledAlerts() {
+        const alertsList = document.getElementById('scheduledAlertsList');
+        alertsList.innerHTML = '';
+
+        const sortedAlerts = [...mockData.scheduledAlerts]
+            .filter(alert => alert.status === 'active')
+            .sort((a, b) => new Date(a.date + ' ' + a.time) - new Date(b.date + ' ' + b.time));
+
+        if (sortedAlerts.length === 0) {
+            alertsList.innerHTML = '<p>No hay alertas programadas</p>';
+            return;
+        }
+
+        sortedAlerts.forEach(alert => {
+            const client = dataUtils.getClientById(alert.clientId);
+            const assignedUser = mockData.users.find(u => u.id === alert.assignedTo);
+
+            const alertElement = document.createElement('div');
+            alertElement.className = 'scheduled-alert-item';
+            alertElement.innerHTML = `
+                <div class="scheduled-alert-content">
+                    <div class="scheduled-alert-title">${alert.title}</div>
+                    <div class="scheduled-alert-details">${alert.description}</div>
+                    <div class="scheduled-alert-time">
+                        <i class="fas fa-calendar"></i> ${dataUtils.formatDate(alert.date)} a las ${alert.time}
+                        | <i class="fas fa-user"></i> ${client ? client.name : 'Cliente no encontrado'}
+                        | <i class="fas fa-user-tie"></i> ${assignedUser ? assignedUser.name : 'Usuario no encontrado'}
+                    </div>
+                </div>
+                <div class="scheduled-alert-actions">
+                    <button class="btn-sm btn-edit" onclick="app.editScheduledAlert(${alert.id})">
+                        <i class="fas fa-edit"></i> Editar
+                    </button>
+                    <button class="btn-sm btn-danger" onclick="app.deleteScheduledAlert(${alert.id})">
+                        <i class="fas fa-trash"></i> Eliminar
+                    </button>
+                </div>
+            `;
+            alertsList.appendChild(alertElement);
+        });
+    }
+
+    showAddAlertOnDate(year, month, day) {
+        const selectedDate = new Date(year, month, day);
+        const dateString = selectedDate.toISOString().split('T')[0];
+        
+        this.showAddScheduledAlertModal(dateString);
+    }
+
+    showAddScheduledAlertModal(preselectedDate = null) {
+        const clients = mockData.clients.filter(c => c.status === 'activo');
+        const users = mockData.users.filter(u => u.status === 'activo');
+        
+        this.showModal('Nueva Alerta Programada', `
+            <form id="addScheduledAlertForm">
+                <div class="form-group">
+                    <label for="scheduledAlertTitle">Título *</label>
+                    <input type="text" id="scheduledAlertTitle" required placeholder="Ej: Audiencia Juan Pérez">
+                </div>
+                <div class="form-group">
+                    <label for="scheduledAlertDescription">Descripción *</label>
+                    <textarea id="scheduledAlertDescription" rows="3" required placeholder="Describa la alerta..."></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="scheduledAlertDate">Fecha *</label>
+                        <input type="date" id="scheduledAlertDate" required value="${preselectedDate || ''}">
+                    </div>
+                    <div class="form-group">
+                        <label for="scheduledAlertTime">Hora *</label>
+                        <input type="time" id="scheduledAlertTime" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="scheduledAlertType">Tipo *</label>
+                        <select id="scheduledAlertType" required>
+                            <option value="">Seleccione el tipo</option>
+                            <option value="audiencia">Audiencia</option>
+                            <option value="seguimiento">Seguimiento</option>
+                            <option value="pago">Recordatorio de Pago</option>
+                            <option value="documento">Entrega de Documentos</option>
+                            <option value="reunion">Reunión</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="scheduledAlertClient">Cliente *</label>
+                        <select id="scheduledAlertClient" required>
+                            <option value="">Seleccione un cliente</option>
+                            ${clients.map(client => `<option value="${client.id}">${client.name} - ${client.document}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="scheduledAlertAssignedTo">Asignar a *</label>
+                        <select id="scheduledAlertAssignedTo" required>
+                            <option value="">Seleccione un usuario</option>
+                            ${users.map(user => `<option value="${user.id}">${user.name} (${user.role})</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="scheduledAlertReminder">Recordatorio (horas antes) *</label>
+                        <select id="scheduledAlertReminder" required>
+                            <option value="1">1 hora antes</option>
+                            <option value="2">2 horas antes</option>
+                            <option value="24">1 día antes</option>
+                            <option value="48">2 días antes</option>
+                            <option value="168">1 semana antes</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" onclick="app.saveScheduledAlert()" class="btn-primary">
+                        <i class="fas fa-calendar-plus"></i> Programar Alerta
+                    </button>
+                    <button type="button" onclick="app.closeModal()" class="btn-secondary">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                </div>
+            </form>
+        `);
+
+        // Establecer fecha mínima como hoy
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('scheduledAlertDate').min = today;
+    }
+
+    saveScheduledAlert() {
+        const title = document.getElementById('scheduledAlertTitle').value.trim();
+        const description = document.getElementById('scheduledAlertDescription').value.trim();
+        const date = document.getElementById('scheduledAlertDate').value;
+        const time = document.getElementById('scheduledAlertTime').value;
+        const type = document.getElementById('scheduledAlertType').value;
+        const clientId = parseInt(document.getElementById('scheduledAlertClient').value);
+        const assignedTo = parseInt(document.getElementById('scheduledAlertAssignedTo').value);
+        const reminderBefore = parseInt(document.getElementById('scheduledAlertReminder').value);
+
+        if (!title || !description || !date || !time || !type || !clientId || !assignedTo || !reminderBefore) {
+            this.showNotification('Por favor complete todos los campos obligatorios', 'error');
+            return;
+        }
+
+        const newScheduledAlert = {
+            id: dataUtils.generateId(),
+            title,
+            description,
+            date,
+            time,
+            type,
+            clientId,
+            assignedTo,
+            status: 'active',
+            reminderBefore,
+            createdBy: this.currentUser.id,
+            createdAt: new Date().toISOString().split('T')[0]
+        };
+
+        // Agregar a mockData
+        mockData.scheduledAlerts.push(newScheduledAlert);
+
+        console.log('Nueva alerta programada creada:', newScheduledAlert);
+        this.showNotification('Alerta programada correctamente', 'success');
+        this.closeModal();
+        this.loadCalendar();
+    }
+
+    viewScheduledAlert(alertId) {
+        const alert = mockData.scheduledAlerts.find(a => a.id === alertId);
+        if (!alert) {
+            this.showNotification('Alerta no encontrada', 'error');
+            return;
+        }
+
+        const client = dataUtils.getClientById(alert.clientId);
+        const assignedUser = mockData.users.find(u => u.id === alert.assignedTo);
+        const createdByUser = mockData.users.find(u => u.id === alert.createdBy);
+
+        this.showModal('Detalle de Alerta Programada', `
+            <div class="scheduled-alert-detail">
+                <div class="alert-header">
+                    <h3>${alert.title}</h3>
+                    <span class="badge badge-${alert.type}">${alert.type.toUpperCase()}</span>
+                </div>
+                
+                <div class="info-section">
+                    <h4>Información General</h4>
+                    <p><strong>Descripción:</strong> ${alert.description}</p>
+                    <p><strong>Fecha y Hora:</strong> ${dataUtils.formatDate(alert.date)} a las ${alert.time}</p>
+                    <p><strong>Cliente:</strong> ${client ? client.name : 'Cliente no encontrado'}</p>
+                    <p><strong>Asignado a:</strong> ${assignedUser ? assignedUser.name : 'Usuario no encontrado'}</p>
+                    <p><strong>Recordatorio:</strong> ${alert.reminderBefore} horas antes</p>
+                    <p><strong>Creado por:</strong> ${createdByUser ? createdByUser.name : 'Usuario no encontrado'}</p>
+                    <p><strong>Fecha de creación:</strong> ${dataUtils.formatDate(alert.createdAt)}</p>
+                </div>
+            </div>
+        `);
+    }
+
+    editScheduledAlert(alertId) {
+        const alert = mockData.scheduledAlerts.find(a => a.id === alertId);
+        if (!alert) {
+            this.showNotification('Alerta no encontrada', 'error');
+            return;
+        }
+
+        const clients = mockData.clients.filter(c => c.status === 'activo');
+        const users = mockData.users.filter(u => u.status === 'activo');
+
+        this.showModal('Editar Alerta Programada', `
+            <form id="editScheduledAlertForm">
+                <div class="form-group">
+                    <label for="editScheduledAlertTitle">Título *</label>
+                    <input type="text" id="editScheduledAlertTitle" required value="${alert.title}">
+                </div>
+                <div class="form-group">
+                    <label for="editScheduledAlertDescription">Descripción *</label>
+                    <textarea id="editScheduledAlertDescription" rows="3" required>${alert.description}</textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editScheduledAlertDate">Fecha *</label>
+                        <input type="date" id="editScheduledAlertDate" required value="${alert.date}">
+                    </div>
+                    <div class="form-group">
+                        <label for="editScheduledAlertTime">Hora *</label>
+                        <input type="time" id="editScheduledAlertTime" required value="${alert.time}">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editScheduledAlertType">Tipo *</label>
+                        <select id="editScheduledAlertType" required>
+                            <option value="audiencia" ${alert.type === 'audiencia' ? 'selected' : ''}>Audiencia</option>
+                            <option value="seguimiento" ${alert.type === 'seguimiento' ? 'selected' : ''}>Seguimiento</option>
+                            <option value="pago" ${alert.type === 'pago' ? 'selected' : ''}>Recordatorio de Pago</option>
+                            <option value="documento" ${alert.type === 'documento' ? 'selected' : ''}>Entrega de Documentos</option>
+                            <option value="reunion" ${alert.type === 'reunion' ? 'selected' : ''}>Reunión</option>
+                            <option value="otro" ${alert.type === 'otro' ? 'selected' : ''}>Otro</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editScheduledAlertStatus">Estado *</label>
+                        <select id="editScheduledAlertStatus" required>
+                            <option value="active" ${alert.status === 'active' ? 'selected' : ''}>Activa</option>
+                            <option value="completed" ${alert.status === 'completed' ? 'selected' : ''}>Completada</option>
+                            <option value="cancelled" ${alert.status === 'cancelled' ? 'selected' : ''}>Cancelada</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" onclick="app.updateScheduledAlert(${alertId})" class="btn-primary">
+                        <i class="fas fa-save"></i> Guardar Cambios
+                    </button>
+                    <button type="button" onclick="app.closeModal()" class="btn-secondary">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                </div>
+            </form>
+        `);
+    }
+
+    updateScheduledAlert(alertId) {
+        const title = document.getElementById('editScheduledAlertTitle').value.trim();
+        const description = document.getElementById('editScheduledAlertDescription').value.trim();
+        const date = document.getElementById('editScheduledAlertDate').value;
+        const time = document.getElementById('editScheduledAlertTime').value;
+        const type = document.getElementById('editScheduledAlertType').value;
+        const status = document.getElementById('editScheduledAlertStatus').value;
+
+        if (!title || !description || !date || !time || !type || !status) {
+            this.showNotification('Por favor complete todos los campos obligatorios', 'error');
+            return;
+        }
+
+        // Actualizar la alerta en mockData
+        const alertIndex = mockData.scheduledAlerts.findIndex(a => a.id === alertId);
+        if (alertIndex > -1) {
+            mockData.scheduledAlerts[alertIndex] = {
+                ...mockData.scheduledAlerts[alertIndex],
+                title,
+                description,
+                date,
+                time,
+                type,
+                status
+            };
+        }
+
+        console.log('Alerta programada actualizada:', alertId);
+        this.showNotification('Alerta actualizada correctamente', 'success');
+        this.closeModal();
+        this.loadCalendar();
+    }
+
+    deleteScheduledAlert(alertId) {
+        if (confirm('¿Está seguro de que desea eliminar esta alerta programada?')) {
+            const index = mockData.scheduledAlerts.findIndex(a => a.id === alertId);
+            if (index > -1) {
+                mockData.scheduledAlerts.splice(index, 1);
+            }
+
+            console.log('Alerta programada eliminada:', alertId);
+            this.showNotification('Alerta eliminada correctamente', 'success');
+            this.loadCalendar();
+        }
+    }
+
+    // ===== FUNCIONES DE BÚSQUEDA MEJORADA =====
+
+    filterClients(searchTerm = '', statusFilter = '') {
+        const tbody = document.getElementById('clientsTableBody');
+        tbody.innerHTML = '';
+
+        // Usar la función de búsqueda mejorada
+        let filteredClients = dataUtils.searchClients(searchTerm);
+
+        // Aplicar filtro de estado si existe
+        if (statusFilter) {
+            filteredClients = filteredClients.filter(client => client.status === statusFilter);
+        }
+
+        // Si no hay resultados, mostrar mensaje
+        if (filteredClients.length === 0) {
+            const noResultsRow = document.createElement('tr');
+            noResultsRow.innerHTML = `
+                <td colspan="6" class="no-results">
+                    <div class="no-results-content">
+                        <i class="fas fa-search"></i>
+                        <p>No se encontraron clientes que coincidan con "${searchTerm || 'los filtros seleccionados'}"</p>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(noResultsRow);
+            return;
+        }
+
+        // Renderizar clientes filtrados
+        filteredClients.forEach(client => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${client.id}</td>
+                <td>${client.name}</td>
+                <td>${client.document}</td>
+                <td>${client.address}</td>
+                <td><span class="badge ${client.status === 'activo' ? 'badge-active' : 'badge-inactive'}">${client.status}</span></td>
+                <td>
+                    <button class="btn-edit" onclick="app.viewClient(${client.id})">
+                        <i class="fas fa-eye"></i> Ver
+                    </button>
+                    <button class="btn-edit" onclick="app.editClient(${client.id})">
+                        <i class="fas fa-edit"></i> Editar
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
     }
 }
 

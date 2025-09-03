@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 </head>
 
 <body>
@@ -27,6 +28,8 @@
                 <li><a href="#" data-section="judicial"><i class="fas fa-gavel"></i> Procesos Judiciales</a></li>
                 <li><a href="#" data-section="extrajudicial"><i class="fas fa-file-contract"></i> Procesos
                         Extrajudiciales</a></li>
+                <li><a href="#" data-section="assignments"><i class="fas fa-tasks"></i> Asignaciones</a></li>
+                <li><a href="#" data-section="calendar"><i class="fas fa-calendar-alt"></i> Calendario</a></li>
                 <li><a href="#" data-section="alerts"><i class="fas fa-bell"></i> Alertas</a></li>
                 <li><a href="#" data-section="reports"><i class="fas fa-chart-bar"></i> Reportes</a></li>
                 <li><a href="#" data-section="settings"><i class="fas fa-cog"></i> Configuración</a></li>
@@ -56,6 +59,9 @@
                     <h2>Dashboard</h2>
                     <p>Resumen general del sistema</p>
                 </div>
+
+                <!-- Alertas Urgentes -->
+                <div id="urgentAlertsContainer"></div>
 
                 <div class="metrics-grid">
                     <div class="metric-card">
@@ -97,6 +103,10 @@
                 </div>
 
                 <div class="dashboard-charts">
+                    <div class="chart-container">
+                        <h3>Efectividad de Contacto</h3>
+                        <canvas id="contactEffectivenessChart"></canvas>
+                    </div>
                     <div class="chart-container">
                         <h3>Procesos por Estado</h3>
                         <canvas id="processStatusChart"></canvas>
@@ -246,6 +256,96 @@
                             <!-- Extrajudicial processes will be loaded here -->
                         </tbody>
                     </table>
+                </div>
+            </section>
+
+            <!-- Assignments Section -->
+            <section id="assignments" class="content-section hidden">
+                <div class="section-header">
+                    <h2>Gestión de Asignaciones</h2>
+                    <div class="header-actions">
+                        <button id="addAssignmentBtn" class="btn-primary"><i class="fas fa-plus"></i> Nueva Asignación</button>
+                        <button onclick="app.exportAssignments()" class="btn-secondary"><i class="fas fa-download"></i>
+                            Exportar</button>
+                    </div>
+                </div>
+
+                <div class="search-filters">
+                    <div class="search-input-container">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" id="assignmentSearch" placeholder="Buscar asignaciones..." class="search-input">
+                    </div>
+                    <select id="assignmentFilter" class="filter-select">
+                        <option value="">Todos los estados</option>
+                        <option value="assigned">Asignado</option>
+                        <option value="in_progress">En Progreso</option>
+                        <option value="completed">Completado</option>
+                    </select>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Tipo Proceso</th>
+                                <th>Cliente</th>
+                                <th>Asignado a</th>
+                                <th>Estado</th>
+                                <th>Prioridad</th>
+                                <th>Fecha Límite</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="assignmentsTableBody">
+                            <!-- Assignments will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Calendar Section -->
+            <section id="calendar" class="content-section hidden">
+                <div class="section-header">
+                    <h2>Calendario de Alertas</h2>
+                    <div class="header-actions">
+                        <button id="addScheduledAlertBtn" class="btn-primary"><i class="fas fa-plus"></i> Nueva Alerta Programada</button>
+                        <button onclick="app.exportScheduledAlerts()" class="btn-secondary"><i class="fas fa-download"></i>
+                            Exportar</button>
+                    </div>
+                </div>
+
+                <div class="calendar-container">
+                    <div class="calendar-header">
+                        <button class="btn-secondary" onclick="app.previousMonth()">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <h3 id="currentMonth">Marzo 2024</h3>
+                        <button class="btn-secondary" onclick="app.nextMonth()">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="calendar-weekdays">
+                        <div class="weekday">Dom</div>
+                        <div class="weekday">Lun</div>
+                        <div class="weekday">Mar</div>
+                        <div class="weekday">Mié</div>
+                        <div class="weekday">Jue</div>
+                        <div class="weekday">Vie</div>
+                        <div class="weekday">Sáb</div>
+                    </div>
+                    
+                    <div class="calendar-grid" id="calendarGrid">
+                        <!-- Calendar days will be generated here -->
+                    </div>
+                </div>
+
+                <div class="scheduled-alerts-list">
+                    <h3>Alertas Programadas</h3>
+                    <div id="scheduledAlertsList">
+                        <!-- Scheduled alerts will be loaded here -->
+                    </div>
                 </div>
             </section>
 
