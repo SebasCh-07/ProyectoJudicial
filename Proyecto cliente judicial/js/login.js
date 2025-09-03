@@ -77,3 +77,4 @@ class LoginSystem {
 document.addEventListener('DOMContentLoaded', () => {
     new LoginSystem();
 });
+

@@ -15,16 +15,13 @@ class JudicialSystem {
     }
 
     setupEventListeners() {
-        // Login form
-        document.getElementById('loginForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.handleLogin();
-        });
-
         // Logout button
-        document.getElementById('logoutBtn').addEventListener('click', () => {
-            this.handleLogout();
-        });
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                this.handleLogout();
+            });
+        }
 
         // Navigation menu
         document.querySelectorAll('.sidebar-menu a').forEach(link => {
@@ -36,48 +33,75 @@ class JudicialSystem {
         });
 
         // Search and filter inputs
-        document.getElementById('clientSearch').addEventListener('input', (e) => {
-            this.filterClients(e.target.value);
-        });
+        const clientSearch = document.getElementById('clientSearch');
+        if (clientSearch) {
+            clientSearch.addEventListener('input', (e) => {
+                this.filterClients(e.target.value);
+            });
+        }
 
-        document.getElementById('clientFilter').addEventListener('change', (e) => {
-            this.filterClients('', e.target.value);
-        });
+        const clientFilter = document.getElementById('clientFilter');
+        if (clientFilter) {
+            clientFilter.addEventListener('change', (e) => {
+                this.filterClients('', e.target.value);
+            });
+        }
 
         // Búsqueda en tiempo real para usuarios
-        document.getElementById('userSearch').addEventListener('input', (e) => {
-            this.searchUsers(e.target.value);
-        });
+        const userSearch = document.getElementById('userSearch');
+        if (userSearch) {
+            userSearch.addEventListener('input', (e) => {
+                this.searchUsers(e.target.value);
+            });
+        }
 
         // Report period selector
-        document.getElementById('reportPeriod').addEventListener('change', () => {
-            this.updateReports();
-        });
+        const reportPeriod = document.getElementById('reportPeriod');
+        if (reportPeriod) {
+            reportPeriod.addEventListener('change', () => {
+                this.updateReports();
+            });
+        }
 
         // Settings form
-        document.getElementById('saveSettings').addEventListener('click', () => {
-            this.saveSettings();
-        });
+        const saveSettings = document.getElementById('saveSettings');
+        if (saveSettings) {
+            saveSettings.addEventListener('click', () => {
+                this.saveSettings();
+            });
+        }
 
-        document.getElementById('resetSettings').addEventListener('click', () => {
-            this.resetSettings();
-        });
+        const resetSettings = document.getElementById('resetSettings');
+        if (resetSettings) {
+            resetSettings.addEventListener('click', () => {
+                this.resetSettings();
+            });
+        }
 
         // Modal close
-        document.querySelector('.modal-close').addEventListener('click', () => {
-            this.closeModal();
-        });
-
-        document.getElementById('modalOverlay').addEventListener('click', (e) => {
-            if (e.target.id === 'modalOverlay') {
+        const modalClose = document.querySelector('.modal-close');
+        if (modalClose) {
+            modalClose.addEventListener('click', () => {
                 this.closeModal();
-            }
-        });
+            });
+        }
+
+        const modalOverlay = document.getElementById('modalOverlay');
+        if (modalOverlay) {
+            modalOverlay.addEventListener('click', (e) => {
+                if (e.target.id === 'modalOverlay') {
+                    this.closeModal();
+                }
+            });
+        }
 
         // Notification close
-        document.querySelector('.notification-close').addEventListener('click', () => {
-            this.hideNotification();
-        });
+        const notificationClose = document.querySelector('.notification-close');
+        if (notificationClose) {
+            notificationClose.addEventListener('click', () => {
+                this.hideNotification();
+            });
+        }
 
         // Botones de agregar nuevos elementos
         this.setupAddButtons();
@@ -125,36 +149,7 @@ class JudicialSystem {
         }
     }
 
-    handleLogin() {
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
 
-        // Simular validación de login
-        if (username === 'admin' && password === 'admin123') {
-            this.currentUser = { id: 1, name: 'Administrador', role: 'admin' };
-            this.loginSuccess();
-        } else if (username === 'user' && password === 'user123') {
-            this.currentUser = { id: 2, name: 'Juan Pérez', role: 'user' };
-            this.loginSuccess();
-        } else {
-            this.showNotification('Credenciales incorrectas', 'error');
-        }
-    }
-
-    loginSuccess() {
-        this.hideLoginSection();
-        this.showAppSection();
-        this.updateUserInfo();
-        this.loadDashboard();
-        this.showNotification(`Bienvenido, ${this.currentUser.name}!`, 'success');
-
-        // Ocultar elementos de admin si no es admin
-        if (this.currentUser.role !== 'admin') {
-            document.querySelectorAll('.admin-only').forEach(el => {
-                el.style.display = 'none';
-            });
-        }
-    }
 
     handleLogout() {
         this.currentUser = null;
@@ -165,22 +160,7 @@ class JudicialSystem {
         this.showNotification('Sesión cerrada correctamente', 'info');
     }
 
-    showLoginSection() {
-        document.getElementById('loginSection').classList.remove('hidden');
-        document.getElementById('appSection').classList.add('hidden');
-    }
 
-    hideLoginSection() {
-        document.getElementById('loginSection').classList.add('hidden');
-    }
-
-    showAppSection() {
-        document.getElementById('appSection').classList.remove('hidden');
-    }
-
-    hideAppSection() {
-        document.getElementById('appSection').classList.add('hidden');
-    }
 
     updateUserInfo() {
         document.getElementById('currentUser').textContent = this.currentUser.name;
