@@ -69,13 +69,6 @@ class JudicialSystem {
             });
         }
 
-        // Report period selector
-        const reportPeriod = document.getElementById('reportPeriod');
-        if (reportPeriod) {
-            reportPeriod.addEventListener('change', () => {
-                this.updateReports();
-            });
-        }
 
         // Settings form
         const saveSettings = document.getElementById('saveSettings');
@@ -248,8 +241,7 @@ class JudicialSystem {
             'extrajudicial': 'Procesos Extrajudiciales',
             'assignments': 'Gestión de Asignaciones',
             'calendar': 'Calendario de Alertas',
-            'alerts': 'Panel de Alertas',
-            'reports': 'Reportes y Métricas',
+            'alerts': 'Panel de Notificaciones',
             'settings': 'Configuración'
         };
         return titles[section] || section;
@@ -280,9 +272,6 @@ class JudicialSystem {
                 break;
             case 'alerts':
                 this.loadAlerts();
-                break;
-            case 'reports':
-                this.loadReports();
                 break;
             case 'settings':
                 this.loadSettings();
@@ -466,7 +455,6 @@ class JudicialSystem {
                 <td>${user.name}</td>
                 <td>${user.email}</td>
                 <td><span class="badge ${user.role === 'admin' ? 'badge-admin' : 'badge-user'}">${user.role}</span></td>
-                <td><span class="badge ${user.status === 'activo' ? 'badge-active' : 'badge-inactive'}">${user.status}</span></td>
                 <td>
                     <button class="btn-edit" onclick="app.editUser(${user.id})">
                         <i class="fas fa-edit"></i> Editar
@@ -595,7 +583,6 @@ class JudicialSystem {
                 <td>${assignedUser ? assignedUser.name : 'Usuario no encontrado'}</td>
                 <td><span class="badge badge-${assignment.status === 'completed' ? 'active' : assignment.status === 'in_progress' ? 'warning' : 'secondary'}">${this.getAssignmentStatusText(assignment.status)}</span></td>
                 <td><span class="badge badge-${assignment.priority}">${assignment.priority.toUpperCase()}</span></td>
-                <td>${dataUtils.formatDate(assignment.dueDate)}</td>
                 <td>
                     <button class="btn-edit" onclick="app.viewAssignment('${assignment.id}')">
                         <i class="fas fa-eye"></i> Ver
@@ -636,153 +623,6 @@ class JudicialSystem {
         });
     }
 
-    loadReports() {
-        this.createReportCharts();
-    }
-
-    createReportCharts() {
-        const chartData = dataUtils.getChartData();
-
-        // Destruir gráficos existentes si los hay
-        if (this.charts.effectivenessChart) {
-            this.charts.effectivenessChart.destroy();
-        }
-        if (this.charts.distributionChart) {
-            this.charts.distributionChart.destroy();
-        }
-        if (this.charts.trendChart) {
-            this.charts.trendChart.destroy();
-        }
-
-        // Gráfico de efectividad por tipo
-        const effectivenessCtx = document.getElementById('effectivenessChart').getContext('2d');
-        this.charts.effectivenessChart = new Chart(effectivenessCtx, {
-            type: 'bar',
-            data: {
-                labels: Object.keys(chartData.effectivenessByType),
-                datasets: [{
-                    label: 'Efectividad (%)',
-                    data: Object.values(chartData.effectivenessByType),
-                    backgroundColor: ['#3498db', '#27ae60', '#f39c12'],
-                    borderWidth: 1,
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        grid: {
-                            color: 'rgba(0,0,0,0.1)'
-                        }
-                    },
-                    x: {
-                        grid: {
-                            display: false
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                },
-                layout: {
-                    padding: {
-                        top: 20,
-                        bottom: 20
-                    }
-                }
-            }
-        });
-
-        // Gráfico de distribución de estados
-        const distributionCtx = document.getElementById('distributionChart').getContext('2d');
-        this.charts.distributionChart = new Chart(distributionCtx, {
-            type: 'pie',
-            data: {
-                labels: Object.keys(chartData.statusDistribution),
-                datasets: [{
-                    data: Object.values(chartData.statusDistribution),
-                    backgroundColor: ['#27ae60', '#e74c3c', '#95a5a6'],
-                    borderWidth: 2,
-                    borderColor: '#fff'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            padding: 20,
-                            usePointStyle: true
-                        }
-                    }
-                },
-                layout: {
-                    padding: {
-                        top: 20,
-                        bottom: 20
-                    }
-                }
-            }
-        });
-
-        // Gráfico de tendencia
-        const trendCtx = document.getElementById('trendChart').getContext('2d');
-        this.charts.trendChart = new Chart(trendCtx, {
-            type: 'line',
-            data: {
-                labels: chartData.trendData.labels,
-                datasets: [{
-                    label: 'Tendencia de Recuperación (%)',
-                    data: chartData.trendData.data,
-                    borderColor: '#667eea',
-                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                    tension: 0.4,
-                    fill: true,
-                    pointBackgroundColor: '#667eea',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
-                    pointRadius: 6
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        max: 100,
-                        grid: {
-                            color: 'rgba(0,0,0,0.1)'
-                        }
-                    },
-                    x: {
-                        grid: {
-                            color: 'rgba(0,0,0,0.1)'
-                        }
-                    }
-                },
-                layout: {
-                    padding: {
-                        top: 20,
-                        bottom: 20
-                    }
-                }
-            }
-        });
-    }
 
     loadSettings() {
         const settings = mockData.settings;
@@ -792,8 +632,6 @@ class JudicialSystem {
         document.getElementById('emailAlerts').checked = settings.alertTypes.email;
         document.getElementById('smsAlerts').checked = settings.alertTypes.sms;
         document.getElementById('pushAlerts').checked = settings.alertTypes.push;
-        document.getElementById('reportEmail').value = settings.reports.email;
-        document.getElementById('autoReports').value = settings.reports.frequency;
     }
 
     saveSettings() {
@@ -806,10 +644,6 @@ class JudicialSystem {
                 sms: document.getElementById('smsAlerts').checked,
                 push: document.getElementById('pushAlerts').checked
             },
-            reports: {
-                email: document.getElementById('reportEmail').value,
-                frequency: document.getElementById('autoReports').value
-            }
         };
 
         console.log('Configuración guardada:', settings);
@@ -883,12 +717,6 @@ class JudicialSystem {
         });
     }
 
-    updateReports() {
-        // Simular actualización de reportes según el período seleccionado
-        const period = document.getElementById('reportPeriod').value;
-        console.log('Actualizando reportes para período:', period);
-        this.showNotification('Reportes actualizados', 'info');
-    }
 
     // Función para destruir todos los gráficos
     destroyAllCharts() {
@@ -1749,25 +1577,47 @@ class JudicialSystem {
                                         <table class="data-table amortization-table">
                                             <thead>
                                                 <tr>
-                                                    <th class="am-col am-col-center">Cuota</th>
+                                                    <th class="am-col am-col-center">Periodo</th>
                                                     <th class="am-col am-col-nowrap">Fecha Venc.</th>
                                                     <th class="am-col am-col-right">Capital</th>
                                                     <th class="am-col am-col-right">Interés</th>
-                                                    <th class="am-col am-col-right">Total</th>
+                                                    <th class="am-col am-col-right">Comisiones</th>
+                                                    <th class="am-col am-col-right">Seguros</th>
+                                                    <th class="am-col am-col-right">Pago Anticipado</th>
+                                                    <th class="am-col am-col-right">Pago Total</th>
+                                                    <th class="am-col am-col-right">Saldo Insoluto</th>
                                                     <th class="am-col am-col-center">Estado</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                ${client.amortizationTable.map(installment => `
-                                                    <tr>
-                                                        <td class="am-col am-col-center">${installment.installment}</td>
-                                                        <td class="am-col am-col-nowrap">${dataUtils.formatDate(installment.dueDate)}</td>
-                                                        <td class="am-col am-col-right">${dataUtils.formatCurrency(installment.capital)}</td>
-                                                        <td class="am-col am-col-right">${dataUtils.formatCurrency(installment.interest)}</td>
-                                                        <td class="am-col am-col-right">${dataUtils.formatCurrency(installment.total)}</td>
-                                                        <td class="am-col am-col-center"><span class="badge ${installment.status === 'pagado' ? 'badge-active' : 'badge-warning'}">${installment.status}</span></td>
-                                                    </tr>
-                                                `).join('')}
+                                                ${(() => {
+                                                    let remainingBalance = Number(client.disbursement?.amount || 0);
+                                                    const rows = [];
+                                                    for (const inst of client.amortizationTable) {
+                                                        const capital = Number(inst.capital || 0);
+                                                        const interest = Number(inst.interest || 0);
+                                                        const commissions = Number(inst.commissions || 0);
+                                                        const insurance = Number(inst.insurance || 0);
+                                                        const prepayment = Number(inst.prepayment || 0);
+                                                        const total = typeof inst.total === 'number' ? inst.total : (capital + interest + commissions + insurance);
+                                                        remainingBalance = Math.max(0, remainingBalance - capital - prepayment);
+                                                        rows.push(`
+                                                            <tr>
+                                                                <td class="am-col am-col-center">${inst.installment}</td>
+                                                                <td class="am-col am-col-nowrap">${dataUtils.formatDate(inst.dueDate)}</td>
+                                                                <td class="am-col am-col-right">${dataUtils.formatCurrency(capital)}</td>
+                                                                <td class="am-col am-col-right">${dataUtils.formatCurrency(interest)}</td>
+                                                                <td class="am-col am-col-right">${dataUtils.formatCurrency(commissions)}</td>
+                                                                <td class="am-col am-col-right">${dataUtils.formatCurrency(insurance)}</td>
+                                                                <td class="am-col am-col-right">${dataUtils.formatCurrency(prepayment)}</td>
+                                                                <td class="am-col am-col-right">${dataUtils.formatCurrency(total - prepayment)}</td>
+                                                                <td class="am-col am-col-right">${dataUtils.formatCurrency(remainingBalance)}</td>
+                                                                <td class="am-col am-col-center"><span class="badge ${inst.status === 'pagado' ? 'badge-active' : (inst.status === 'vencido' ? 'badge-vencido' : 'badge-warning')}">${inst.status}</span></td>
+                                                            </tr>
+                                                        `);
+                                                    }
+                                                    return rows.join('');
+                                                })()}
                                             </tbody>
                                         </table>
                                     </div>
@@ -2636,45 +2486,27 @@ class JudicialSystem {
             return;
         }
 
-        const urgentCount = urgentAlerts.filter(alert => alert.type === 'overdue').length;
-        const soonCount = urgentAlerts.filter(alert => alert.type === 'due_soon').length;
-
-        container.innerHTML = `
-            <div class="urgent-alerts">
-                <h4><i class="fas fa-exclamation-triangle"></i> Alertas Urgentes (${urgentAlerts.length})</h4>
+        container.classList.add('urgent-flyout');
+        container.classList.remove('hidden');
+        container.innerHTML = urgentAlerts.map(alert => `
+            <div class="urgent-alerts urgent-alert-item ${alert.type}" data-client-id="${alert.clientId}" data-process-id="${alert.processId}" data-type="${alert.type}">
+                <h4><i class="fas fa-exclamation-triangle"></i> Alerta Urgente</h4>
                 <div class="urgent-alerts-summary">
-                    ${urgentCount > 0 ? `<span class="urgent-stat"><strong>${urgentCount}</strong> créditos vencidos</span>` : ''}
-                    ${soonCount > 0 ? `<span class="urgent-stat"><strong>${soonCount}</strong> próximos a vencer</span>` : ''}
+                    ${alert.type === 'overdue' ? `<span class=\"urgent-stat\"><strong>${alert.daysOverdue}</strong> días de retraso</span>` : `<span class=\"urgent-stat\"><strong>${alert.daysUntilDue}</strong> días para vencer</span>`}
                 </div>
-                <div class="urgent-alerts-list">
-                    ${urgentAlerts.slice(0, 5).map(alert => `
-                        <div class="urgent-alert-item ${alert.type}">
-                            <div class="alert-content">
-                                <span class="alert-message">${alert.message}</span>
-                                <small class="alert-meta">
-                                    ${alert.type === 'overdue' ? `${alert.daysOverdue} días de retraso` : `Vence en ${alert.daysUntilDue} días`}
-                                </small>
-                            </div>
-                            <div class="alert-actions">
-                                <button class="btn-sm btn-primary" onclick="app.viewClientFromAlert(${alert.clientId})">
-                                    <i class="fas fa-user"></i> Ver Cliente
-                                </button>
-                                <button class="btn-sm btn-secondary" onclick="app.sendAutomaticMessage(${alert.clientId}, ${alert.daysUntilDue || 0})">
-                                    <i class="fas fa-sms"></i> Enviar SMS
-                                </button>
-                            </div>
-                        </div>
-                    `).join('')}
-                    ${urgentAlerts.length > 5 ? `
-                        <div class="show-more-alerts">
-                            <button class="btn-link" onclick="app.showAllUrgentAlerts()">
-                                Ver todas las alertas (${urgentAlerts.length - 5} más)
-                            </button>
-                        </div>
-                    ` : ''}
+                <div class="alert-content">
+                    <span class="alert-message">${alert.message}</span>
+                </div>
+                <div class="alert-actions">
+                    <button class="btn-sm btn-primary" onclick="app.viewClientFromAlertAndDismiss(${alert.clientId}, this)">
+                        <i class="fas fa-user"></i> Ver Cliente
+                    </button>
+                    <button class="btn-sm btn-secondary" onclick="app.sendAutomaticMessage(${alert.clientId}, ${alert.daysUntilDue || 0})">
+                        <i class="fas fa-sms"></i> Enviar SMS
+                    </button>
                 </div>
             </div>
-        `;
+        `).join('');
 
         // Configurar actualización automática cada 5 minutos
         if (!this.urgentAlertsInterval) {
@@ -2688,6 +2520,45 @@ class JudicialSystem {
 
     viewClientFromAlert(clientId) {
         this.viewClient(clientId);
+    }
+
+    viewClientFromAlertAndDismiss(clientId, el) {
+        // Ver cliente
+        this.viewClient(clientId);
+
+        // Marcar alerta como vista y mover al panel
+        const alertEl = el && el.closest('.urgent-alerts');
+        if (alertEl) {
+            const clientIdAttr = Number(alertEl.getAttribute('data-client-id'));
+            const processIdAttr = alertEl.getAttribute('data-process-id');
+            const typeAttr = alertEl.getAttribute('data-type');
+            const messageText = alertEl.querySelector('.alert-message')?.textContent || 'Alerta urgente';
+
+            dataUtils.dismissUrgentAlert({ clientId: clientIdAttr, processId: processIdAttr, type: typeAttr });
+
+            // Obtener nombre del cliente y agregar al panel de alertas
+            const client = dataUtils.getClientById(clientIdAttr);
+            dataUtils.addAlertToPanel({
+                priority: typeAttr === 'overdue' ? 'high' : 'medium',
+                message: messageText,
+                clientId: clientIdAttr,
+                clientName: client ? (client.name || client.personalDocuments?.fullName || 'Cliente') : 'Cliente'
+            });
+
+            // Eliminar visualmente la tarjeta
+            if (alertEl.parentElement) alertEl.parentElement.removeChild(alertEl);
+        }
+
+        // Ocultar contenedor si queda vacío
+        const container = document.getElementById('urgentAlertsContainer');
+        if (container && container.children.length === 0) {
+            container.classList.add('hidden');
+        }
+
+        // Si estamos en la pestaña de alertas, refrescar
+        if (this.currentSection === 'alerts') {
+            this.loadAlerts();
+        }
     }
 
     sendAutomaticMessage(clientId, daysUntilDue) {

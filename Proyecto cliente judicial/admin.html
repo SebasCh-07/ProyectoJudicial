@@ -30,8 +30,7 @@
                         Extrajudiciales</a></li>
                 <li><a href="#" data-section="assignments"><i class="fas fa-tasks"></i> Asignaciones</a></li>
                 <li><a href="#" data-section="calendar"><i class="fas fa-calendar-alt"></i> Calendario</a></li>
-                <li><a href="#" data-section="alerts"><i class="fas fa-bell"></i> Alertas</a></li>
-                <li><a href="#" data-section="reports"><i class="fas fa-chart-bar"></i> Reportes</a></li>
+                <li><a href="#" data-section="alerts"><i class="fas fa-bell"></i> Notificaciones</a></li>
                 <li><a href="#" data-section="settings"><i class="fas fa-cog"></i> Configuración</a></li>
             </ul>
             <div class="sidebar-footer">
@@ -64,7 +63,7 @@
                 <div id="urgentAlertsContainer"></div>
 
                 <div class="metrics-grid">
-                    <div class="metric-card">
+                    <a class="metric-card metric-link" href="clientes.html">
                         <div class="metric-icon">
                             <i class="fas fa-users"></i>
                         </div>
@@ -72,8 +71,8 @@
                             <h3 id="totalClients">0</h3>
                             <p>Total Clientes</p>
                         </div>
-                    </div>
-                    <div class="metric-card">
+                    </a>
+                    <a class="metric-card metric-link" href="procesos-judiciales.html">
                         <div class="metric-icon">
                             <i class="fas fa-gavel"></i>
                         </div>
@@ -81,8 +80,8 @@
                             <h3 id="totalJudicial">0</h3>
                             <p>Procesos Judiciales</p>
                         </div>
-                    </div>
-                    <div class="metric-card">
+                    </a>
+                    <a class="metric-card metric-link" href="procesos-extrajudiciales.html">
                         <div class="metric-icon">
                             <i class="fas fa-file-contract"></i>
                         </div>
@@ -90,8 +89,8 @@
                             <h3 id="totalExtrajudicial">0</h3>
                             <p>Procesos Extrajudiciales</p>
                         </div>
-                    </div>
-                    <div class="metric-card">
+                    </a>
+                    <a class="metric-card metric-link" href="reportes.html">
                         <div class="metric-icon">
                             <i class="fas fa-percentage"></i>
                         </div>
@@ -99,7 +98,7 @@
                             <h3 id="effectiveness">0%</h3>
                             <p>Efectividad</p>
                         </div>
-                    </div>
+                    </a>
                 </div>
 
                 <div class="dashboard-charts">
@@ -144,7 +143,6 @@
                                 <th>Nombre</th>
                                 <th>Email</th>
                                 <th>Rol</th>
-                                <th>Estado</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
@@ -293,7 +291,6 @@
                                 <th>Asignado a</th>
                                 <th>Estado</th>
                                 <th>Prioridad</th>
-                                <th>Fecha Límite</th>
                                 <th>Acciones</th>
                             </tr>
                         </thead>
@@ -352,7 +349,7 @@
             <!-- Alerts Section -->
             <section id="alerts" class="content-section hidden">
                 <div class="section-header">
-                    <h2>Panel de Alertas</h2>
+                    <h2>Panel de Notificaciones</h2>
                     <div class="header-actions">
                         <button id="addAlertBtn" class="btn-primary"><i class="fas fa-plus"></i> Nueva Alerta</button>
                         <button onclick="app.exportAlerts()" class="btn-secondary"><i class="fas fa-download"></i>
@@ -373,58 +370,6 @@
                 </div>
             </section>
 
-            <!-- Reports Section -->
-            <section id="reports" class="content-section hidden">
-                <div class="section-header">
-                    <h2>Reportes y Métricas</h2>
-                    <div class="report-filters">
-                        <select id="reportPeriod" class="filter-select">
-                            <option value="month">Este Mes</option>
-                            <option value="quarter">Este Trimestre</option>
-                            <option value="year">Este Año</option>
-                        </select>
-                        <button onclick="app.backupData()" class="btn-secondary">
-                            <i class="fas fa-download"></i> Respaldo
-                        </button>
-                    </div>
-                </div>
-
-                <div class="reports-grid">
-                    <div class="report-card">
-                        <h3>Efectividad por Tipo de Proceso</h3>
-                        <canvas id="effectivenessChart"></canvas>
-                    </div>
-                    <div class="report-card">
-                        <h3>Distribución de Estados</h3>
-                        <canvas id="distributionChart"></canvas>
-                    </div>
-                    <div class="report-card">
-                        <h3>Tendencia de Recuperación</h3>
-                        <canvas id="trendChart"></canvas>
-                    </div>
-                </div>
-
-                <div class="statistics-summary">
-                    <div class="stat-card">
-                        <h4>Estadísticas de Clientes</h4>
-                        <div id="clientStats" class="stat-content">
-                            <!-- Client statistics will be loaded here -->
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <h4>Estadísticas de Procesos</h4>
-                        <div id="processStats" class="stat-content">
-                            <!-- Process statistics will be loaded here -->
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <h4>Estadísticas de Alertas</h4>
-                        <div id="alertStats" class="stat-content">
-                            <!-- Alert statistics will be loaded here -->
-                        </div>
-                    </div>
-                </div>
-            </section>
 
             <!-- Settings Section -->
             <section id="settings" class="content-section hidden">

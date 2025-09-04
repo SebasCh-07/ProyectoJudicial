@@ -782,7 +782,7 @@ const dataUtils = {
         return diffDays;
     },
 
-    // Obtener alertas urgentes para admin
+    // Obtener alertas urgentes para admin (excluye vistas)
     getUrgentAlerts: () => {
         const urgentAlerts = [];
         const today = new Date();
@@ -814,12 +814,38 @@ const dataUtils = {
             }
         });
 
-        return urgentAlerts.sort((a, b) => {
+        // Excluir alertas ya vistas (persistencia básica en memoria)
+        const dismissed = window.__dismissedUrgentAlerts || new Set();
+        const filtered = urgentAlerts.filter(a => !dismissed.has(`${a.clientId}:${a.processId}:${a.type}`));
+
+        return filtered.sort((a, b) => {
             if (a.type === "overdue" && b.type !== "overdue") return -1;
             if (a.type !== "overdue" && b.type === "overdue") return 1;
             if (a.daysOverdue && b.daysOverdue) return b.daysOverdue - a.daysOverdue;
             return 0;
         });
+    },
+
+    // Marcar alerta urgente como vista (no volver a mostrar)
+    dismissUrgentAlert: (alert) => {
+        if (!window.__dismissedUrgentAlerts) window.__dismissedUrgentAlerts = new Set();
+        window.__dismissedUrgentAlerts.add(`${alert.clientId}:${alert.processId}:${alert.type}`);
+    },
+
+    // Agregar alerta al panel general
+    addAlertToPanel: ({priority, message, clientId, clientName}) => {
+        const alert = {
+            id: dataUtils.generateId(),
+            priority: priority || 'high',
+            message,
+            clientId,
+            clientName,
+            recipient: 'Administrador',
+            createdAt: new Date().toISOString().split('T')[0],
+            status: 'activa'
+        };
+        mockData.alerts.push(alert);
+        return alert;
     },
 
     // Generar mensaje automático para cliente

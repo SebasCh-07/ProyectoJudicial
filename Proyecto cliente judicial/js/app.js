@@ -366,7 +366,6 @@ class JudicialSystem {
                 <td>${user.name}</td>
                 <td>${user.email}</td>
                 <td><span class="badge ${user.role === 'admin' ? 'badge-admin' : 'badge-user'}">${user.role}</span></td>
-                <td><span class="badge ${user.status === 'activo' ? 'badge-active' : 'badge-inactive'}">${user.status}</span></td>
                 <td>
                     <button class="btn-edit" onclick="app.editUser(${user.id})">
                         <i class="fas fa-edit"></i> Editar

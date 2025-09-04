@@ -11,7 +11,7 @@ class UserSystem {
         }
         
         this.currentUser = JSON.parse(currentUser);
-        this.currentSection = 'dashboard';
+        this.currentSection = 'assignments';
         this.charts = {}; // Almacenar instancias de gráficos
         this.init();
     }
@@ -19,7 +19,10 @@ class UserSystem {
     init() {
         this.setupEventListeners();
         this.updateUserInfo();
-        this.loadDashboard();
+        this.loadAssignments();
+        this.showUrgentAlerts();
+        // Actualizar alertas urgentes cada 5 minutos
+        setInterval(() => this.showUrgentAlerts(), 5 * 60 * 1000);
     }
 
     setupEventListeners() {
@@ -38,18 +41,27 @@ class UserSystem {
         });
 
         // Search and filter inputs
-        document.getElementById('clientSearch').addEventListener('input', (e) => {
-            this.filterClients(e.target.value);
-        });
+        const clientSearchInput = document.getElementById('clientSearch');
+        if (clientSearchInput) {
+            clientSearchInput.addEventListener('input', (e) => {
+                this.filterClients(e.target.value);
+            });
+        }
 
-        document.getElementById('clientFilter').addEventListener('change', (e) => {
-            this.filterClients('', e.target.value);
-        });
+        const clientFilterSelect = document.getElementById('clientFilter');
+        if (clientFilterSelect) {
+            clientFilterSelect.addEventListener('change', (e) => {
+                this.filterClients('', e.target.value);
+            });
+        }
 
         // Report period selector
-        document.getElementById('reportPeriod').addEventListener('change', () => {
-            this.updateReports();
-        });
+        const reportPeriodSelect = document.getElementById('reportPeriod');
+        if (reportPeriodSelect) {
+            reportPeriodSelect.addEventListener('change', () => {
+                this.updateReports();
+            });
+        }
 
         // Modal close
         document.querySelector('.modal-close').addEventListener('click', () => {
@@ -118,7 +130,6 @@ class UserSystem {
 
     getSectionTitle(section) {
         const titles = {
-            'dashboard': 'Dashboard',
             'clients': 'Gestión de Clientes',
             'judicial': 'Procesos Judiciales',
             'extrajudicial': 'Procesos Extrajudiciales',
@@ -131,9 +142,6 @@ class UserSystem {
 
     loadSectionContent(section) {
         switch (section) {
-            case 'dashboard':
-                this.loadDashboard();
-                break;
             case 'clients':
                 this.loadClients();
                 break;
@@ -155,110 +163,6 @@ class UserSystem {
         }
     }
 
-    loadDashboard() {
-        const stats = dataUtils.getDashboardStats();
-
-        // Actualizar métricas
-        document.getElementById('totalClients').textContent = stats.totalClients;
-        document.getElementById('totalJudicial').textContent = stats.totalJudicial;
-        document.getElementById('totalExtrajudicial').textContent = stats.totalExtrajudicial;
-        document.getElementById('effectiveness').textContent = `${stats.effectiveness}%`;
-
-        // Crear gráficos solo si no existen
-        this.createDashboardCharts();
-    }
-
-    createDashboardCharts() {
-        const chartData = dataUtils.getChartData();
-
-        // Destruir gráficos existentes si los hay
-        if (this.charts.processStatusChart) {
-            this.charts.processStatusChart.destroy();
-        }
-        if (this.charts.monthlyActivityChart) {
-            this.charts.monthlyActivityChart.destroy();
-        }
-
-        // Gráfico de estados de procesos
-        const processStatusCtx = document.getElementById('processStatusChart').getContext('2d');
-        this.charts.processStatusChart = new Chart(processStatusCtx, {
-            type: 'doughnut',
-            data: {
-                labels: Object.keys(chartData.processStatus),
-                datasets: [{
-                    data: Object.values(chartData.processStatus),
-                    backgroundColor: ['#3498db', '#27ae60', '#e74c3c'],
-                    borderWidth: 2,
-                    borderColor: '#fff'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            padding: 20,
-                            usePointStyle: true
-                        }
-                    }
-                },
-                layout: {
-                    padding: {
-                        top: 20,
-                        bottom: 20
-                    }
-                }
-            }
-        });
-
-        // Gráfico de actividad mensual
-        const monthlyActivityCtx = document.getElementById('monthlyActivityChart').getContext('2d');
-        this.charts.monthlyActivityChart = new Chart(monthlyActivityCtx, {
-            type: 'line',
-            data: {
-                labels: Object.keys(chartData.monthlyActivity),
-                datasets: [{
-                    label: 'Procesos',
-                    data: Object.values(chartData.monthlyActivity),
-                    borderColor: '#667eea',
-                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: {
-                            color: 'rgba(0,0,0,0.1)'
-
-                        }
-                    },
-                    x: {
-                        grid: {
-                            color: 'rgba(0,0,0,0.1)'
-                        }
-                    }
-                },
-                layout: {
-                    padding: {
-                        top: 20,
-                        bottom: 20
-                    }
-                }
-            }
-        });
-    }
 
     loadClients() {
         const tbody = document.getElementById('clientsTableBody');
@@ -764,6 +668,14 @@ class UserSystem {
         this.exportToCSV(mockData.alerts, 'alertas');
     }
 
+    exportAssignments() {
+        // Filtrar asignaciones para el usuario actual
+        const userAssignments = mockData.assignments.filter(assignment => 
+            assignment.assignedTo === this.currentUser.id
+        );
+        this.exportToCSV(userAssignments, 'mis_asignaciones');
+    }
+
     // ===== FUNCIONES DE VISUALIZACIÓN =====
 
     viewClient(clientId) {
@@ -1132,13 +1044,101 @@ class UserSystem {
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
+
+    // ===== FUNCIONES DE ALERTAS URGENTES =====
+
+    showUrgentAlerts() {
+        const urgentAlerts = dataUtils.getUrgentAlerts();
+        const container = document.getElementById('urgentFlyout');
+
+        if (urgentAlerts.length === 0) {
+            container.classList.add('hidden');
+            return;
+        }
+
+        container.classList.remove('hidden');
+        container.innerHTML = urgentAlerts.map(alert => `
+            <div class="urgent-alerts urgent-alert-item ${alert.type}" data-client-id="${alert.clientId}" data-process-id="${alert.processId}" data-type="${alert.type}">
+                <h4><i class="fas fa-exclamation-triangle"></i> Alerta Urgente</h4>
+                <div class="urgent-alerts-summary">
+                    ${alert.type === 'overdue' ? `<span class="urgent-stat"><strong>${alert.daysOverdue}</strong> días de retraso</span>` : `<span class="urgent-stat"><strong>${alert.daysUntilDue}</strong> días para vencer</span>`}
+                </div>
+                <div class="alert-content">
+                    <span class="alert-message">${alert.message}</span>
+                </div>
+                <div class="alert-actions">
+                    <button class="btn-sm btn-primary" onclick="app.viewClientFromAlertAndDismiss(${alert.clientId}, this)">
+                        <i class="fas fa-user"></i> Ver Cliente
+                    </button>
+                    <button class="btn-sm btn-secondary" onclick="app.sendAutomaticMessage(${alert.clientId}, ${alert.daysUntilDue || 0})">
+                        <i class="fas fa-sms"></i> Enviar SMS
+                    </button>
+                    <button class="btn-sm btn-danger" onclick="app.dismissUrgentAlert(this)">
+                        <i class="fas fa-times"></i> Descartar
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    viewClientFromAlertAndDismiss(clientId, buttonEl) {
+        const alertEl = buttonEl && buttonEl.closest('.urgent-alerts');
+        if (alertEl) {
+            const clientId = alertEl.dataset.clientId;
+            const processId = alertEl.dataset.processId;
+            const type = alertEl.dataset.type;
+            
+            // Marcar como vista
+            dataUtils.dismissUrgentAlert({ clientId: parseInt(clientId), processId: parseInt(processId), type });
+            
+            // Ver cliente
+            this.viewClient(parseInt(clientId));
+            
+            // Actualizar alertas
+            this.showUrgentAlerts();
+        }
+    }
+
+    sendAutomaticMessage(clientId, daysUntilDue) {
+        const message = dataUtils.generateAutomaticMessage(clientId, daysUntilDue);
+        if (message) {
+            // Simular envío de SMS
+            console.log('Enviando SMS:', message);
+            this.showNotification(`SMS enviado a ${message.phone}`, 'success');
+            
+            // Agregar al historial de mensajes automáticos
+            mockData.automaticMessages.push({
+                ...message,
+                id: dataUtils.generateId(),
+                sentDate: new Date().toISOString().split('T')[0],
+                status: 'sent',
+                type: 'reminder'
+            });
+        }
+    }
+
+    dismissUrgentAlert(buttonEl) {
+        const alertEl = buttonEl && buttonEl.closest('.urgent-alerts');
+        if (alertEl) {
+            const clientId = alertEl.dataset.clientId;
+            const processId = alertEl.dataset.processId;
+            const type = alertEl.dataset.type;
+            
+            // Marcar como vista
+            dataUtils.dismissUrgentAlert({ clientId: parseInt(clientId), processId: parseInt(processId), type });
+            
+            // Actualizar alertas
+            this.showUrgentAlerts();
+            
+            this.showNotification('Alerta descartada', 'info');
+        }
+    }
 }
 
 // Inicializar la aplicación cuando se carga la página
 let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new UserSystem();
+    // Hacer la aplicación disponible globalmente una vez creada
+    window.app = app;
 });
-
-// Hacer la aplicación disponible globalmente
-window.app = app;
