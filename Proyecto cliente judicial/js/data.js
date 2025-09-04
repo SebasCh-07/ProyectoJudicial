@@ -477,7 +477,7 @@ const mockData = {
             status: "assigned",
             priority: "high",
             notes: "Cliente con historial de pagos puntuales",
-            dueDate: "2024-03-20"
+            dueDate: "2024-03-19"
         },
         {
             id: 2,
@@ -489,7 +489,19 @@ const mockData = {
             status: "in_progress",
             priority: "medium",
             notes: "Revisar documentación antes de la audiencia",
-            dueDate: "2024-03-18"
+            dueDate: "2024-03-17"
+        },
+        {
+            id: 3,
+            processType: "judicial",
+            processId: 2,
+            assignedBy: 1,
+            assignedTo: 2, // Juan Pérez
+            assignedDate: "2024-03-10",
+            status: "assigned",
+            priority: "medium",
+            notes: "Proceso judicial en etapa de conciliación",
+            dueDate: "2024-09-07"
         }
     ],
 
@@ -740,7 +752,10 @@ const dataUtils = {
 
     // Generar ID único
     generateId: () => {
-        return Date.now() + Math.random().toString(36).substr(2, 9);
+        // Generar ID secuencial basado en el tipo de dato
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substr(2, 5);
+        return `${timestamp}${random}`;
     },
 
     // Búsqueda avanzada de clientes por nombre o CI

@@ -555,9 +555,24 @@ class JudicialSystem {
         });
     }
 
+    cleanupAssignmentIds() {
+        // Limpiar IDs largos y regenerar IDs secuenciales
+        mockData.assignments.forEach((assignment, index) => {
+            const idString = String(assignment.id);
+            // Si el ID es muy largo (más de 10 caracteres), reemplazarlo con un ID secuencial
+            if (idString.length > 10) {
+                assignment.id = index + 1;
+                console.log(`ID limpiado: ${idString} -> ${assignment.id}`);
+            }
+        });
+    }
+
     loadAssignments() {
         const tbody = document.getElementById('assignmentsTableBody');
         tbody.innerHTML = '';
+
+        // Limpiar IDs largos y regenerar IDs secuenciales
+        this.cleanupAssignmentIds();
 
         mockData.assignments.forEach(assignment => {
             // Obtener información del cliente y usuario asignado
@@ -582,13 +597,13 @@ class JudicialSystem {
                 <td><span class="badge badge-${assignment.priority}">${assignment.priority.toUpperCase()}</span></td>
                 <td>${dataUtils.formatDate(assignment.dueDate)}</td>
                 <td>
-                    <button class="btn-edit" onclick="app.viewAssignment(${assignment.id})">
+                    <button class="btn-edit" onclick="app.viewAssignment('${assignment.id}')">
                         <i class="fas fa-eye"></i> Ver
                     </button>
-                    <button class="btn-edit" onclick="app.editAssignment(${assignment.id})">
+                    <button class="btn-edit" onclick="app.editAssignment('${assignment.id}')">
                         <i class="fas fa-edit"></i> Editar
                     </button>
-                    <button class="btn-danger" onclick="app.deleteAssignment(${assignment.id})">
+                    <button class="btn-danger" onclick="app.deleteAssignment('${assignment.id}')">
                         <i class="fas fa-trash"></i> Eliminar
                     </button>
                 </td>
@@ -1479,8 +1494,15 @@ class JudicialSystem {
             return;
         }
 
+        // Generar ID secuencial para asignaciones
+        const maxId = Math.max(...mockData.assignments.map(a => {
+            const id = String(a.id);
+            const numericPart = id.match(/^\d+/);
+            return numericPart ? parseInt(numericPart[0]) : 0;
+        }), 0);
+        
         const newAssignment = {
-            id: dataUtils.generateId(),
+            id: maxId + 1,
             processType,
             processId,
             assignedBy: this.currentUser.id,
@@ -2429,7 +2451,11 @@ class JudicialSystem {
     }
 
     viewAssignment(assignmentId) {
-        const assignment = mockData.assignments.find(a => a.id === assignmentId);
+        console.log('Intentando ver asignación con ID:', assignmentId);
+        // Convertir a string para comparación consistente
+        const assignment = mockData.assignments.find(a => String(a.id) === String(assignmentId));
+        console.log('Asignación encontrada:', assignment);
+        
         if (!assignment) {
             this.showNotification('Asignación no encontrada', 'error');
             return;
@@ -2457,6 +2483,7 @@ class JudicialSystem {
             }
         }
 
+        console.log('Mostrando modal de detalles de asignación');
         this.showModal('Detalle de Asignación', `
             <div class="assignment-detail">
                 <div class="assignment-header">
@@ -2490,7 +2517,7 @@ class JudicialSystem {
     }
 
     editAssignment(assignmentId) {
-        const assignment = mockData.assignments.find(a => a.id === assignmentId);
+        const assignment = mockData.assignments.find(a => String(a.id) === String(assignmentId));
         if (!assignment) {
             this.showNotification('Asignación no encontrada', 'error');
             return;
@@ -2580,7 +2607,7 @@ class JudicialSystem {
 
     deleteAssignment(assignmentId) {
         if (confirm('¿Está seguro de que desea eliminar esta asignación?')) {
-            const index = mockData.assignments.findIndex(a => a.id === assignmentId);
+            const index = mockData.assignments.findIndex(a => String(a.id) === String(assignmentId));
             if (index > -1) {
                 mockData.assignments.splice(index, 1);
             }
