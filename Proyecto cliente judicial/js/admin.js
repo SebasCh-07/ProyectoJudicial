@@ -1600,9 +1600,16 @@ class JudicialSystem {
         this.showModal('Ficha Completa del Cliente', `
             <div class="client-profile-extended">
                 <div class="client-header">
-                    <h3>${client.personalDocuments.fullName}</h3>
-                    <span class="badge ${client.status === 'activo' ? 'badge-active' : 'badge-inactive'}">${client.status}</span>
-                    ${client.hasOverduePayments ? '<span class="badge badge-warning">Pagos Vencidos</span>' : ''}
+                    <div class="client-name-section">
+                        <div class="client-photo">
+                            <i class="fas fa-user-circle"></i>
+                        </div>
+                        <h3>${client.personalDocuments.fullName}</h3>
+                    </div>
+                    <div class="client-badges">
+                        <span class="badge ${client.status === 'activo' ? 'badge-active' : 'badge-inactive'}">${client.status}</span>
+                        ${client.hasOverduePayments ? '<span class="badge badge-warning">Pagos Vencidos</span>' : ''}
+                    </div>
                 </div>
                 
                 <div class="client-tabs">
@@ -1738,27 +1745,27 @@ class JudicialSystem {
                                 
                                 ${client.amortizationTable && client.amortizationTable.length > 0 ? `
                                     <h5>Tabla de Amortización</h5>
-                                    <div class="table-container">
-                                        <table class="data-table">
+                                    <div class="table-container amortization-container">
+                                        <table class="data-table amortization-table">
                                             <thead>
                                                 <tr>
-                                                    <th>Cuota</th>
-                                                    <th>Fecha Venc.</th>
-                                                    <th>Capital</th>
-                                                    <th>Interés</th>
-                                                    <th>Total</th>
-                                                    <th>Estado</th>
+                                                    <th class="am-col am-col-center">Cuota</th>
+                                                    <th class="am-col am-col-nowrap">Fecha Venc.</th>
+                                                    <th class="am-col am-col-right">Capital</th>
+                                                    <th class="am-col am-col-right">Interés</th>
+                                                    <th class="am-col am-col-right">Total</th>
+                                                    <th class="am-col am-col-center">Estado</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 ${client.amortizationTable.map(installment => `
                                                     <tr>
-                                                        <td>${installment.installment}</td>
-                                                        <td>${dataUtils.formatDate(installment.dueDate)}</td>
-                                                        <td>${dataUtils.formatCurrency(installment.capital)}</td>
-                                                        <td>${dataUtils.formatCurrency(installment.interest)}</td>
-                                                        <td>${dataUtils.formatCurrency(installment.total)}</td>
-                                                        <td><span class="badge ${installment.status === 'pagado' ? 'badge-active' : 'badge-warning'}">${installment.status}</span></td>
+                                                        <td class="am-col am-col-center">${installment.installment}</td>
+                                                        <td class="am-col am-col-nowrap">${dataUtils.formatDate(installment.dueDate)}</td>
+                                                        <td class="am-col am-col-right">${dataUtils.formatCurrency(installment.capital)}</td>
+                                                        <td class="am-col am-col-right">${dataUtils.formatCurrency(installment.interest)}</td>
+                                                        <td class="am-col am-col-right">${dataUtils.formatCurrency(installment.total)}</td>
+                                                        <td class="am-col am-col-center"><span class="badge ${installment.status === 'pagado' ? 'badge-active' : 'badge-warning'}">${installment.status}</span></td>
                                                     </tr>
                                                 `).join('')}
                                             </tbody>

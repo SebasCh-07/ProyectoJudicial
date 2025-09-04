@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestión Judicial - Procesos Extrajudiciales</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+
+<body>
+    <!-- Main Application -->
+    <div id="appSection" class="app-container">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <i class="fas fa-balance-scale"></i>
+                <span>Sistema Judicial</span>
+            </div>
+            <ul class="sidebar-menu">
+                <li><a href="dashboard.html"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+                <li><a href="usuarios.html"><i class="fas fa-users"></i> Usuarios</a></li>
+                <li><a href="clientes.html"><i class="fas fa-user-tie"></i> Clientes</a></li>
+                <li><a href="procesos-judiciales.html"><i class="fas fa-gavel"></i> Procesos Judiciales</a></li>
+                <li><a href="procesos-extrajudiciales.html" class="active"><i class="fas fa-file-contract"></i> Procesos Extrajudiciales</a></li>
+                <li><a href="asignaciones.html"><i class="fas fa-tasks"></i> Asignaciones</a></li>
+                <li><a href="calendario.html"><i class="fas fa-calendar-alt"></i> Calendario</a></li>
+                <li><a href="alertas.html"><i class="fas fa-bell"></i> Alertas</a></li>
+            </ul>
+            <div class="sidebar-footer">
+                <button id="logoutBtn" class="btn-logout">
+                    <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="breadcrumb">
+                    <span id="currentSection">Procesos Extrajudiciales</span>
+                </div>
+                <div class="user-info">
+                    <span id="currentUser">Administrador</span>
+                    <i class="fas fa-user-circle"></i>
+                </div>
+            </header>
+
+            <!-- Extrajudicial Processes Section -->
+            <section id="extrajudicial" class="content-section">
+                <div class="section-header">
+                    <h2>Procesos Extrajudiciales</h2>
+                    <div class="header-actions">
+                        <button id="addExtrajudicialBtn" class="btn-primary"><i class="fas fa-plus"></i> Nuevo
+                            Crédito</button>
+                        <button onclick="app.exportExtrajudicialProcesses()" class="btn-secondary"><i
+                                class="fas fa-download"></i> Exportar</button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Número de Crédito</th>
+                                <th>Cliente</th>
+                                <th>Monto</th>
+                                <th>Estado</th>
+                                <th>Fecha Vencimiento</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="extrajudicialTableBody">
+                            <!-- Extrajudicial processes will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="modalOverlay" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modalTitle">Título del Modal</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Modal content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Banner -->
+    <div id="notificationBanner" class="notification-banner hidden">
+        <div class="notification-content">
+            <i class="fas fa-info-circle"></i>
+            <span id="notificationMessage">Mensaje de notificación</span>
+        </div>
+        <button class="notification-close">&times;</button>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+
+</html>

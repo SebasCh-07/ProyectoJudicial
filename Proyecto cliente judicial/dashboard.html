@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestión Judicial - Dashboard</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <!-- Main Application -->
+    <div id="appSection" class="app-container">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <i class="fas fa-balance-scale"></i>
+                <span>Sistema Judicial</span>
+            </div>
+            <ul class="sidebar-menu">
+                <li><a href="dashboard.html" class="active"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+                <li><a href="usuarios.html"><i class="fas fa-users"></i> Usuarios</a></li>
+                <li><a href="clientes.html"><i class="fas fa-user-tie"></i> Clientes</a></li>
+                <li><a href="procesos-judiciales.html"><i class="fas fa-gavel"></i> Procesos Judiciales</a></li>
+                <li><a href="procesos-extrajudiciales.html"><i class="fas fa-file-contract"></i> Procesos Extrajudiciales</a></li>
+                <li><a href="asignaciones.html"><i class="fas fa-tasks"></i> Asignaciones</a></li>
+                <li><a href="calendario.html"><i class="fas fa-calendar-alt"></i> Calendario</a></li>
+                <li><a href="alertas.html"><i class="fas fa-bell"></i> Alertas</a></li>
+            </ul>
+            <div class="sidebar-footer">
+                <button id="logoutBtn" class="btn-logout">
+                    <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="breadcrumb">
+                    <span id="currentSection">Dashboard</span>
+                </div>
+                <div class="user-info">
+                    <span id="currentUser">Administrador</span>
+                    <i class="fas fa-user-circle"></i>
+                </div>
+            </header>
+
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="content-section">
+                <div class="section-header">
+                    <h2>Dashboard</h2>
+                    <p>Resumen general del sistema</p>
+                </div>
+
+                <!-- Alertas Urgentes -->
+                <div id="urgentAlertsContainer"></div>
+
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3 id="totalClients">0</h3>
+                            <p>Total Clientes</p>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon">
+                            <i class="fas fa-gavel"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3 id="totalJudicial">0</h3>
+                            <p>Procesos Judiciales</p>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon">
+                            <i class="fas fa-file-contract"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3 id="totalExtrajudicial">0</h3>
+                            <p>Procesos Extrajudiciales</p>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon">
+                            <i class="fas fa-percentage"></i>
+                        </div>
+                        <div class="metric-content">
+                            <h3 id="effectiveness">0%</h3>
+                            <p>Efectividad</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-charts">
+                    <div class="chart-container">
+                        <h3>Efectividad de Contacto</h3>
+                        <canvas id="contactEffectivenessChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Procesos por Estado</h3>
+                        <canvas id="processStatusChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Actividad Mensual</h3>
+                        <canvas id="monthlyActivityChart"></canvas>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Notification Banner -->
+    <div id="notificationBanner" class="notification-banner hidden">
+        <div class="notification-content">
+            <i class="fas fa-info-circle"></i>
+            <span id="notificationMessage">Mensaje de notificación</span>
+        </div>
+        <button class="notification-close">&times;</button>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+
+</html>
